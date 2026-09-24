@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
 
 from app.providers.base import TranscriptionProvider
@@ -29,14 +30,17 @@ class Room:
     started_at: float | None = None  # epoch seconds when the provider went active; origin for SRT/VTT timing
     last_activity: float = field(default_factory=time.time)
     last_error: str | None = None
+    error_count: int = 0
     provider: TranscriptionProvider | None = field(default=None, repr=False)
     store: TranscriptStore = field(init=False, repr=False)
     audio_queue: asyncio.Queue[bytes | None] = field(init=False, repr=False)
     worker_task: asyncio.Task | None = field(default=None, repr=False)
+    recent_latencies_ms: deque[float] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.store = TranscriptStore(self.id)
         self.audio_queue = asyncio.Queue(maxsize=200)
+        self.recent_latencies_ms = deque(maxlen=20)
 
     def to_public_dict(self) -> dict:
         return {
@@ -48,7 +52,13 @@ class Room:
             "created_at": self.created_at,
             "last_activity": self.last_activity,
             "idle_s": round(time.time() - self.last_activity, 1) if self.status == "active" else None,
+            "avg_latency_ms": (
+                round(sum(self.recent_latencies_ms) / len(self.recent_latencies_ms))
+                if self.recent_latencies_ms
+                else None
+            ),
             "utterance_count": len(self.store.entries),
+            "error_count": self.error_count,
             "last_error": self.last_error,
         }
 

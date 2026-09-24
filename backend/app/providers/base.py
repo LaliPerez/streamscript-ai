@@ -22,6 +22,10 @@ class TranscriptEvent:
     start_ms: int
     end_ms: int
     created_at: float = field(default_factory=time.time)
+    # How long the provider's own processing (e.g. a translation call) took
+    # to produce this event, if it tracks that. None for providers that don't
+    # have a measurable processing step (e.g. MockProvider).
+    processing_ms: float | None = None
 
 
 class TranscriptionProvider(ABC):

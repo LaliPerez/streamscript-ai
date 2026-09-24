@@ -16,28 +16,41 @@
   .status.starting, .status.closed { background:#3f3f46; color:#d4d4d8; }
   a { color:#7dd3fc; }
   .actions a { margin-right: 0.6rem; font-size: 0.82rem; }
+  .errcount { color:#fca5a5; }
+  .muted { color:#64748b; }
 </style>
 </head>
 <body>
 <h1>Panel de producción</h1>
 <table>
   <thead>
-    <tr><th>Sala</th><th>Estado</th><th>Idiomas</th><th>Inactividad</th><th>Frases</th><th>Acciones</th></tr>
+    <tr>
+      <th>Sala</th><th>Estado</th><th>Idiomas</th><th>Inactividad</th>
+      <th>Latencia (traducción)</th><th>Frases</th><th>Errores</th><th>Acciones</th>
+    </tr>
   </thead>
   <tbody id="rows"></tbody>
 </table>
 
 <script>
+function esc(s) {
+  const div = document.createElement('div');
+  div.textContent = s ?? '';
+  return div.innerHTML;
+}
+
 async function refresh() {
   const rooms = await (await fetch('/api/rooms')).json();
   const rows = document.getElementById('rows');
   rows.innerHTML = rooms.map(r => `
     <tr>
-      <td>${r.title || r.id}</td>
-      <td><span class="status ${r.status}">${r.status}${r.last_error ? ': ' + r.last_error : ''}</span></td>
-      <td>${r.source_lang} → ${r.target_langs.join(', ')}</td>
+      <td>${esc(r.title || r.id)}</td>
+      <td><span class="status ${r.status}">${r.status}${r.last_error ? ': ' + esc(r.last_error) : ''}</span></td>
+      <td>${esc(r.source_lang)} → ${esc(r.target_langs.join(', '))}</td>
       <td>${r.idle_s !== null ? r.idle_s + 's' : '—'}</td>
+      <td>${r.avg_latency_ms !== null ? r.avg_latency_ms + 'ms' : '<span class="muted">—</span>'}</td>
       <td>${r.utterance_count}</td>
+      <td class="${r.error_count > 0 ? 'errcount' : 'muted'}">${r.error_count}</td>
       <td class="actions">
         <a href="watch.html?room=${r.id}" target="_blank">ver</a>
         <a href="/api/rooms/${r.id}/export?format=srt">.srt</a>

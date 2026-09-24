@@ -47,6 +47,7 @@ async def run_room(room: Room) -> None:
         logger.exception("failed to start provider for room %s", room.id)
         room.status = "error"
         room.last_error = str(exc)
+        room.error_count += 1
         await hub.broadcast(room.id, {"type": "status", "status": "error", "detail": str(exc)})
         return
 
@@ -57,8 +58,10 @@ async def run_room(room: Room) -> None:
                 return
             try:
                 await provider.send_audio_chunk(chunk)
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
                 logger.exception("error sending audio for room %s", room.id)
+                room.error_count += 1
+                room.last_error = str(exc)
 
     async def pump_events() -> None:
         origin_ms = int(room.started_at * 1000)
@@ -74,6 +77,8 @@ async def run_room(room: Room) -> None:
                 event.end_ms += _estimate_display_ms(event.source_text)
             room.store.append(event)
             room.last_activity = event.created_at
+            if event.processing_ms is not None:
+                room.recent_latencies_ms.append(event.processing_ms)
             await hub.broadcast(
                 room.id,
                 {
@@ -92,9 +97,11 @@ async def run_room(room: Room) -> None:
         await asyncio.gather(pump_audio(), pump_events())
     except asyncio.CancelledError:
         pass
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         logger.exception("room %s worker crashed", room.id)
         room.status = "error"
+        room.last_error = str(exc)
+        room.error_count += 1
         await hub.broadcast(room.id, {"type": "status", "status": "error"})
     finally:
         await provider.close()

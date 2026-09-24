@@ -147,7 +147,9 @@ class GeminiLiveProvider(TranscriptionProvider):
             task.add_done_callback(self._translate_tasks.discard)
 
     async def _translate_and_emit(self, source_text: str) -> None:
+        translate_started = time.monotonic()
         translations = await self._translate(source_text)
+        processing_ms = (time.monotonic() - translate_started) * 1000
         now_ms = int(time.time() * 1000)
         await self._events.put(
             TranscriptEvent(
@@ -158,6 +160,7 @@ class GeminiLiveProvider(TranscriptionProvider):
                 is_final=True,
                 start_ms=now_ms,
                 end_ms=now_ms,
+                processing_ms=processing_ms,
             )
         )
 
