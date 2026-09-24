@@ -2,9 +2,61 @@
 
 Subtítulos y traducción en tiempo real para conferencias, open source y a escala de producción.
 
+[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-00ACA8)](LICENSE)
+[![Built with Gemini](https://img.shields.io/badge/built%20with-Gemini-FFBA00)](https://ai.google.dev)
+[![Deploy](https://img.shields.io/badge/deploy-docker%20compose%20up-00ACA8)](docker-compose.yml)
+[![Vibeathon](https://img.shields.io/badge/Nerdearla-Vibeathon%202026-FF323C)](https://nerdearla.com)
+
 Construido para la **Vibeathon de Nerdearla 2026**: reemplazar el esquema actual de subtitulado
 comercial/manual (caro, dependiente de operadores, no replicable) por un motor open source que
 cualquier conferencia pueda desplegar con `docker compose up`.
+
+**Lo que distingue a esta entrega:** cada afirmación técnica de este README se probó contra la API real
+de Gemini durante el desarrollo, no solo contra el `MockProvider` incluido — incluyendo los momentos en
+que la API no se comportó como decía la documentación. Eso significa encontrar y resolver en vivo que
+ningún modelo Live "conversacional" de Gemini acepta audio+texto (obligó a rediseñar la arquitectura en
+dos etapas), que el free tier tiene cuotas de apenas 20 requests/día en algunos modelos, y validar con
+**audio real** — no texto de prueba — las cuatro combinaciones de idioma que pide el reto, incluyendo
+portugués de punta a punta. El detalle de cada prueba está en
+[Fortalezas de la arquitectura](#fortalezas-de-la-arquitectura) y en el checklist de abajo.
+
+## Checklist del desafío, con evidencia
+
+Requisitos obligatorios de la Vibeathon, cada uno con lo que lo respalda:
+
+- [x] **Transcripción en tiempo real, idioma original + español.** Validado con audio real en inglés y
+      portugués, transcripto correctamente por `gemini-3.5-transcribe-live`.
+- [x] **Traducción español → inglés ("si podés").** Validado con voz en español real (TTS de Windows):
+      *"Bienvenidos a esta charla sobre sistemas distribuidos."* → *"Welcome to this talk about
+      distributed systems."*
+- [x] **Correr varias sesiones al mismo tiempo (5, 10+).** La arquitectura lo soporta y se probó con
+      hasta 8 salas `GeminiLiveProvider` reales en simultáneo sin interferencia entre las que conectaron.
+      El techo real hoy es de **cuota de cuenta de Google (tier gratuito), no de la arquitectura** — ver
+      [la sección de cuota](#cuota-de-la-cuenta-no-límite-de-la-arquitectura-leer-antes-de-un-evento-real),
+      es lo primero a resolver antes de un evento real.
+- [x] **Licencia OSI + documentación clara.** MIT (aprobada por OSI) — ver [LICENSE](LICENSE).
+- [x] **Vista de audiencia: elegir sesión e idioma.** `index.html` lista las salas activas (elegir
+      sesión), `watch.html` tiene el selector de idioma — validado abriéndolo en el navegador.
+- [x] **Construida sobre Gemini.** `GeminiLiveProvider`, arquitectura en dos etapas (necesaria: ningún
+      modelo Live "conversacional" acepta `response_modalities=["TEXT"]` con audio a esta fecha):
+      1. **ASR en streaming** con `gemini-3.5-transcribe-live`, detectando fin de oración por puntuación
+         sobre el transcript acumulado que devuelve el modelo.
+      2. **Traducción por oración** con una llamada de texto aparte (configurable con
+         `GEMINI_TRANSLATE_MODEL`), inyectando el glosario técnico en el prompt — confirmado que respeta
+         términos marcados como "no traducir" (ej. *hydration*). Si esa llamada falla (rate limit, 503),
+         degrada a mostrar el texto sin traducir en vez de perder el subtítulo, y **eso queda registrado**
+         como error visible en `/dashboard.html`, no oculto.
+- [ ] **Proveedor local con Gemma para el caso 100% offline.** Gemma en sí **no transcribe audio** (es
+      una familia de modelos de texto); el camino equivalente al de arriba sería un ASR local (ej.
+      Whisper) + **TranslateGemma** (variante de Gemma para traducción, 55 idiomas) — mismo contrato
+      `TranscriptionProvider`, mismo patrón de dos etapas ya validado con Gemini.
+
+Opcionales cubiertos — los 5 del reto: glosario técnico, export SRT/VTT/TXT, overlay OBS/vMix, portugués
+como idioma extra (entrada y salida, validado con audio real), y panel de monitoreo con latencia y
+errores reales por sala (no estimados).
+
+Pendiente: escalado horizontal (Redis-backed `RoomManager` + workers separados) para producción a 30+
+salas más allá de un solo proceso — no bloqueante para el reto, sí sería el siguiente paso real.
 
 ## El problema
 
@@ -244,43 +296,6 @@ parámetro `lang` es opcional; si se omite, se muestra el idioma original. En vM
 fuente de tipo *Web Browser*. La misma sala puede tener a la vez: audiencia mirando `/watch.html` desde
 el celu vía QR, el overlay quemándose en el stream, y el equipo de producción viendo `/dashboard.html`
 — los tres consumen el mismo WebSocket de subtítulos (`/ws/subtitles/{room_id}`), sin pasos extra.
-
-## Checklist del desafío
-
-Requisitos obligatorios de la Vibeathon, cada uno con lo que lo respalda:
-
-- [x] **Transcripción en tiempo real, idioma original + español.** Validado con audio real en inglés y
-      portugués, transcripto correctamente por `gemini-3.5-transcribe-live`.
-- [x] **Traducción español → inglés ("si podés").** Validado con voz en español real (TTS de Windows):
-      *"Bienvenidos a esta charla sobre sistemas distribuidos."* → *"Welcome to this talk about
-      distributed systems."*
-- [x] **Correr varias sesiones al mismo tiempo (5, 10+).** La arquitectura lo soporta y se probó con
-      hasta 8 salas `GeminiLiveProvider` reales en simultáneo sin interferencia entre las que conectaron.
-      El techo real hoy es de **cuota de cuenta de Google (tier gratuito), no de la arquitectura** — ver
-      la sección de arriba, es lo primero a resolver antes de un evento real.
-- [x] **Licencia OSI + documentación clara.** MIT (aprobada por OSI) — ver [LICENSE](LICENSE).
-- [x] **Vista de audiencia: elegir sesión e idioma.** `index.html` lista las salas activas (elegir
-      sesión), `watch.html` tiene el selector de idioma — validado abriéndolo en el navegador.
-- [x] **Construida sobre Gemini.** `GeminiLiveProvider`, arquitectura en dos etapas (necesaria: ningún
-      modelo Live "conversacional" acepta `response_modalities=["TEXT"]` con audio a esta fecha):
-      1. **ASR en streaming** con `gemini-3.5-transcribe-live`, detectando fin de oración por puntuación
-         sobre el transcript acumulado que devuelve el modelo.
-      2. **Traducción por oración** con una llamada de texto aparte (configurable con
-         `GEMINI_TRANSLATE_MODEL`), inyectando el glosario técnico en el prompt — confirmado que respeta
-         términos marcados como "no traducir" (ej. *hydration*). Si esa llamada falla (rate limit, 503),
-         degrada a mostrar el texto sin traducir en vez de perder el subtítulo, y **eso queda registrado**
-         como error visible en `/dashboard.html`, no oculto.
-- [ ] **Proveedor local con Gemma para el caso 100% offline.** Gemma en sí **no transcribe audio** (es
-      una familia de modelos de texto); el camino equivalente al de arriba sería un ASR local (ej.
-      Whisper) + **TranslateGemma** (variante de Gemma para traducción, 55 idiomas) — mismo contrato
-      `TranscriptionProvider`, mismo patrón de dos etapas ya validado con Gemini.
-
-Opcionales cubiertos: glosario técnico, export SRT/VTT/TXT, overlay OBS/vMix, portugués como idioma
-extra (entrada y salida, validado con audio real), y panel de monitoreo con latencia y errores reales
-por sala.
-
-Pendiente: escalado horizontal (Redis-backed `RoomManager` + workers separados) para producción a 30+
-salas más allá de un solo proceso — no bloqueante para el reto, sí sería el siguiente paso real.
 
 **Nota sobre nombres de modelo:** la familia Gemini se mueve rápido y cada modelo del free tier tiene su
 propia cuota diaria chica — si uno se agota, alcanza con cambiar `GEMINI_TRANSLATE_MODEL` en `.env` a
