@@ -77,11 +77,12 @@ a { color: var(--accent); }
 ::selection { background: var(--accent); color: #0a0c11; }
 
 .nerdearla-credit {
-  display: inline-flex; align-items: center; gap: 0.4rem;
+  display: inline-flex; align-items: center; gap: 0.5rem;
   font-size: 0.78rem; color: var(--text-faint); text-decoration: none;
-  border: 1px solid var(--border); border-radius: 999px; padding: 0.3rem 0.7rem 0.3rem 0.55rem;
+  border: 1px solid var(--border); border-radius: 999px; padding: 0.3rem 0.75rem 0.3rem 0.4rem;
   transition: border-color 0.15s, color 0.15s;
 }
 .nerdearla-credit:hover { border-color: var(--accent); color: var(--text-dim); }
+.nerdearla-credit img { height: 18px; width: auto; display: block; border-radius: 4px; }
 .nerdearla-credit .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
 .nerdearla-credit strong { color: var(--text-dim); font-weight: 700; }
