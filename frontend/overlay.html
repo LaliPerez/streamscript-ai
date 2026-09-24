@@ -17,7 +17,11 @@
     max-width: 85vw;
     text-align: center;
     text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
   }
+  #caption.visible { opacity: 1; transform: translateY(0); }
 </style>
 </head>
 <body>
@@ -27,9 +31,21 @@
   const roomId = getParam('room');
   const lang = getParam('lang'); // e.g. ?room=abc123&lang=es
   const captionEl = document.getElementById('caption');
+  let lastText = null;
+
+  function show(text) {
+    if (text === lastText) return;
+    lastText = text;
+    captionEl.classList.remove('visible');
+    setTimeout(() => {
+      captionEl.textContent = text;
+      captionEl.classList.toggle('visible', Boolean(text));
+    }, 180);
+  }
+
   if (roomId) {
     connectSubtitles(roomId, (msg) => {
-      captionEl.textContent = pickLine(msg, lang || msg.source_lang);
+      show(pickLine(msg, lang || msg.source_lang));
     }, () => {});
   }
 </script>

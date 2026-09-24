@@ -4,27 +4,43 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>StreamScript AI — Subtítulos en vivo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%237dd3fc'/%3E%3Crect x='6' y='10' width='2.4' height='8' rx='1.2' fill='%230a0c11'/%3E%3Crect x='10.8' y='6' width='2.4' height='12' rx='1.2' fill='%230a0c11'/%3E%3Crect x='15.6' y='9' width='2.4' height='9' rx='1.2' fill='%230a0c11'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="theme.css" />
 <style>
-  body { font-family: system-ui, sans-serif; margin: 0; background:#0b0d12; color:#f2f4f8; min-height:100vh; display:flex; flex-direction:column; }
-  header { display:flex; justify-content:space-between; align-items:center; padding: 0.75rem 1rem; border-bottom: 1px solid #2a2f3a; }
-  header select, header button { background:#1a1d24; color:#f2f4f8; border:1px solid #2a2f3a; border-radius:6px; padding:0.4rem 0.6rem; }
-  #status { font-size: 0.8rem; opacity: 0.7; }
+  body { min-height:100vh; display:flex; flex-direction:column; }
+  header { display:flex; justify-content:space-between; align-items:center; padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border); }
+  header select, header button {
+    background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    border-radius: 7px; padding: 0.4rem 0.65rem; font-family: var(--font); font-size: 0.85rem; cursor: pointer;
+  }
+  header select:hover, header button:hover { border-color: var(--accent); }
+  #status { font-size: 0.78rem; color: var(--text-dim); display:flex; align-items:center; gap:0.4rem; }
   main { flex:1; display:flex; align-items:center; justify-content:center; padding: 2rem 1.5rem; text-align:center; }
-  #caption { font-size: clamp(1.4rem, 4vw, 2.6rem); line-height: 1.4; max-width: 900px; }
-  #caption.high-contrast { color:#fff200; }
+  #caption {
+    font-size: clamp(1.4rem, 4vw, 2.6rem); line-height: 1.4; max-width: 900px;
+    opacity: 1; transform: translateY(0);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+  }
+  #caption.swap { opacity: 0; transform: translateY(6px); }
+  #caption.high-contrast { color: #fff200; }
+  #caption.placeholder { color: var(--text-faint); font-size: 1.3rem; }
   .controls { display:flex; gap:0.5rem; align-items:center; }
 </style>
 </head>
 <body>
 <header>
+  <a class="brand" href="index.html">
+    <svg width="20" height="20" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#7dd3fc"/><rect x="6" y="10" width="2.4" height="8" rx="1.2" fill="#0a0c11"/><rect x="10.8" y="6" width="2.4" height="12" rx="1.2" fill="#0a0c11"/><rect x="15.6" y="9" width="2.4" height="9" rx="1.2" fill="#0a0c11"/></svg>
+    StreamScript AI
+  </a>
   <div class="controls">
     <select id="lang"></select>
     <button id="contrast">Alto contraste</button>
   </div>
-  <span id="status">conectando…</span>
+  <span id="status"><span class="spinner"></span> conectando…</span>
 </header>
 <main>
-  <div id="caption">Esperando subtítulos…</div>
+  <div id="caption" class="placeholder">Esperando subtítulos…</div>
 </main>
 <script src="watch.js"></script>
 <script>
@@ -32,9 +48,28 @@
   const captionEl = document.getElementById('caption');
   const statusEl = document.getElementById('status');
   const langSel = document.getElementById('lang');
+  let lastText = null;
+
+  function setStatus(text, kind) {
+    const icon = kind === 'active' ? '<span class="live-dot"></span>'
+      : kind === 'error' ? '⚠️'
+      : '<span class="spinner"></span>';
+    statusEl.innerHTML = `${icon} ${text}`;
+  }
+
+  function showCaption(text) {
+    if (text === lastText) return;
+    lastText = text;
+    captionEl.classList.add('swap');
+    setTimeout(() => {
+      captionEl.classList.remove('placeholder');
+      captionEl.textContent = text;
+      captionEl.classList.remove('swap');
+    }, 180);
+  }
 
   async function init() {
-    if (!roomId) { statusEl.textContent = 'falta ?room=<id>'; return; }
+    if (!roomId) { setStatus('falta ?room=<id> en la URL', 'error'); return; }
     const room = await (await fetch(`/api/rooms/${encodeURIComponent(roomId)}`)).json();
     const langs = [room.source_lang, ...room.target_langs.filter(l => l !== room.source_lang)];
     langSel.innerHTML = '';
@@ -48,12 +83,13 @@
 
     connectSubtitles(roomId, (msg) => {
       const showingTranslation = langSel.value !== msg.source_lang;
-      captionEl.textContent = pickLine(msg, langSel.value);
+      showCaption(pickLine(msg, langSel.value));
       captionEl.title = (msg.degraded && showingTranslation)
         ? 'Traducción no disponible en este momento — mostrando el texto original'
         : '';
     }, (msg) => {
-      statusEl.textContent = msg.status;
+      const labels = { active: 'en vivo', starting: 'iniciando…', error: 'error', disconnected: 'desconectado' };
+      setStatus(labels[msg.status] || msg.status, msg.status === 'active' ? 'active' : msg.status === 'error' ? 'error' : 'pending');
     });
   }
 

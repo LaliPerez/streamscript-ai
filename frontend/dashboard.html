@@ -4,24 +4,38 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>StreamScript AI — Panel de producción</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%237dd3fc'/%3E%3Crect x='6' y='10' width='2.4' height='8' rx='1.2' fill='%230a0c11'/%3E%3Crect x='10.8' y='6' width='2.4' height='12' rx='1.2' fill='%230a0c11'/%3E%3Crect x='15.6' y='9' width='2.4' height='9' rx='1.2' fill='%230a0c11'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="theme.css" />
 <style>
-  body { font-family: system-ui, sans-serif; margin: 0; background:#0b0d12; color:#f2f4f8; padding: 1.5rem; }
-  h1 { font-size: 1.3rem; }
-  table { width:100%; border-collapse: collapse; margin-top: 1rem; }
-  th, td { text-align:left; padding: 0.55rem 0.7rem; border-bottom: 1px solid #2a2f3a; font-size: 0.9rem; }
-  th { color:#94a3b8; font-weight: 600; }
-  .status { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.78rem; }
-  .status.active { background:#14532d; color:#86efac; }
-  .status.error { background:#450a0a; color:#fca5a5; }
-  .status.starting, .status.closed { background:#3f3f46; color:#d4d4d8; }
-  a { color:#7dd3fc; }
-  .actions a { margin-right: 0.6rem; font-size: 0.82rem; }
-  .errcount { color:#fca5a5; }
-  .muted { color:#64748b; }
+  body { padding: 1.75rem; max-width: 1080px; margin: 0 auto; }
+  header { display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem; }
+  h1 { font-size: 0.95rem; font-weight: 600; color: var(--text-dim); margin: 0; letter-spacing: 0.02em; text-transform: uppercase; }
+  table { width:100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+  th, td { text-align:left; padding: 0.65rem 0.8rem; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--bg-alt); }
+  th { color: var(--text-dim); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .status { padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; display:inline-flex; align-items:center; gap:0.35rem; }
+  .status.active { background: var(--ok-bg); color: var(--ok-fg); }
+  .status.error { background: var(--err-bg); color: var(--err-fg); }
+  .status.starting { background: var(--warn-bg); color: var(--warn-fg); }
+  .status.closed { background: var(--bg-alt); color: var(--text-faint); }
+  .actions a { margin-right: 0.6rem; font-size: 0.82rem; text-decoration: none; }
+  .actions a:hover { text-decoration: underline; }
+  .errcount { color: var(--err-fg); font-weight: 600; }
+  .muted { color: var(--text-faint); }
+  #empty { padding: 2.5rem; text-align: center; color: var(--text-faint); border: 1px dashed var(--border); border-radius: var(--radius); }
 </style>
 </head>
 <body>
-<h1>Panel de producción</h1>
+<header>
+  <span class="brand">
+    <svg width="22" height="22" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#7dd3fc"/><rect x="6" y="10" width="2.4" height="8" rx="1.2" fill="#0a0c11"/><rect x="10.8" y="6" width="2.4" height="12" rx="1.2" fill="#0a0c11"/><rect x="15.6" y="9" width="2.4" height="9" rx="1.2" fill="#0a0c11"/></svg>
+    StreamScript AI <span class="tag">panel de producción</span>
+  </span>
+  <a href="index.html">← salas activas</a>
+</header>
+
 <table>
   <thead>
     <tr>
@@ -31,6 +45,7 @@
   </thead>
   <tbody id="rows"></tbody>
 </table>
+<p id="empty" style="display:none;">No hay salas todavía.</p>
 
 <script>
 function esc(s) {
@@ -39,25 +54,35 @@ function esc(s) {
   return div.innerHTML;
 }
 
+const statusLabel = { active: 'en vivo', starting: 'iniciando', error: 'error', closed: 'cerrada' };
+
 async function refresh() {
   const rooms = await (await fetch('/api/rooms')).json();
   const rows = document.getElementById('rows');
-  rows.innerHTML = rooms.map(r => `
+  document.getElementById('empty').style.display = rooms.length ? 'none' : 'block';
+  rows.innerHTML = rooms.map(r => {
+    const id = encodeURIComponent(r.id);
+    const dot = r.status === 'active' ? '<span class="live-dot"></span>' : '';
+    return `
     <tr>
       <td>${esc(r.title || r.id)}</td>
-      <td><span class="status ${r.status}">${r.status}${r.last_error ? ': ' + esc(r.last_error) : ''}</span></td>
+      <td>
+        <span class="status ${esc(r.status)}">${dot}${esc(statusLabel[r.status] || r.status)}</span>
+        ${r.last_error ? `<div class="muted" style="margin-top:0.25rem; font-size:0.76rem;">${esc(r.last_error)}</div>` : ''}
+      </td>
       <td>${esc(r.source_lang)} → ${esc(r.target_langs.join(', '))}</td>
       <td>${r.idle_s !== null ? r.idle_s + 's' : '—'}</td>
       <td>${r.avg_latency_ms !== null ? r.avg_latency_ms + 'ms' : '<span class="muted">—</span>'}</td>
       <td>${r.utterance_count}</td>
       <td class="${r.error_count > 0 ? 'errcount' : 'muted'}">${r.error_count}</td>
       <td class="actions">
-        <a href="watch.html?room=${r.id}" target="_blank">ver</a>
-        <a href="/api/rooms/${r.id}/export?format=srt">.srt</a>
-        <a href="/api/rooms/${r.id}/export?format=vtt">.vtt</a>
+        <a href="watch.html?room=${id}" target="_blank">ver</a>
+        <a href="/api/rooms/${id}/export?format=srt">.srt</a>
+        <a href="/api/rooms/${id}/export?format=vtt">.vtt</a>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 refresh();
 setInterval(refresh, 3000);
