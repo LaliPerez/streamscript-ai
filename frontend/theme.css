@@ -1,28 +1,38 @@
+/* Palette from Nerdearla's official brand kit (nerdearla.com/brand/):
+   primary — Amarillo #FFBA00, Verde/Teal #00ACA8, Rojo #FF323C, Negro #1A1A1A.
+   secondary — Verde #00B253 reused for success states.
+   Typography per that guide: Rift Soft is their display font but is a
+   paid/commercial license we can't bundle here, so headings/labels use
+   Barlow Semi Condensed (their own documented alternative for "UI elements
+   and labels") and body text uses Roboto, both loaded from Google Fonts. */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap');
+
 :root {
-  --bg: #0a0c11;
-  --bg-alt: #12151c;
-  --surface: #161a23;
-  --border: #262b38;
-  --text: #f2f4f8;
-  --text-dim: #94a3b8;
-  --text-faint: #64748b;
-  --accent: #7dd3fc;
-  --accent-strong: #38bdf8;
-  --ok-bg: #123821;
-  --ok-fg: #6ee7a8;
-  --err-bg: #3a1414;
-  --err-fg: #fca5a5;
-  --warn-bg: #3a2c10;
-  --warn-fg: #fcd34d;
+  --bg: #1a1a1a;
+  --bg-alt: #232323;
+  --surface: #272727;
+  --border: #3c3c3c;
+  --text: #f5f5f5;
+  --text-dim: #aeaeae;
+  --text-faint: #7a7a7a;
+  --accent: #00aca8;
+  --accent-strong: #00d4ce;
+  --ok-bg: #0e2c1c;
+  --ok-fg: #00b253;
+  --err-bg: #3a1013;
+  --err-fg: #ff323c;
+  --warn-bg: #3a2c05;
+  --warn-fg: #ffba00;
   --radius: 10px;
-  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font: 'Roboto', system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: 'Barlow Semi Condensed', var(--font);
 }
 
 * { box-sizing: border-box; }
 
 body {
   font-family: var(--font);
-  background: radial-gradient(1200px 600px at 15% -10%, #131826 0%, var(--bg) 55%);
+  background: radial-gradient(1200px 600px at 15% -10%, #232323 0%, var(--bg) 55%);
   color: var(--text);
   margin: 0;
 }
@@ -33,8 +43,9 @@ a { color: var(--accent); }
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.01em;
   color: var(--text);
   text-decoration: none;
 }
@@ -54,13 +65,13 @@ a { color: var(--accent); }
   border-radius: 50%;
   background: var(--ok-fg);
   display: inline-block;
-  box-shadow: 0 0 0 0 rgba(110, 231, 168, 0.6);
+  box-shadow: 0 0 0 0 rgba(0, 178, 83, 0.6);
   animation: live-pulse 1.8s ease-out infinite;
 }
 @keyframes live-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(110, 231, 168, 0.55); }
-  70%  { box-shadow: 0 0 0 8px rgba(110, 231, 168, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(110, 231, 168, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(0, 178, 83, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(0, 178, 83, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 178, 83, 0); }
 }
 
 .spinner {
@@ -74,7 +85,7 @@ a { color: var(--accent); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-::selection { background: var(--accent); color: #0a0c11; }
+::selection { background: var(--accent); color: #1a1a1a; }
 
 .nerdearla-credit {
   display: inline-flex; align-items: center; gap: 0.5rem;
