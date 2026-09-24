@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StreamScript AI — Panel de producción</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background:#0b0d12; color:#f2f4f8; padding: 1.5rem; }
+  h1 { font-size: 1.3rem; }
+  table { width:100%; border-collapse: collapse; margin-top: 1rem; }
+  th, td { text-align:left; padding: 0.55rem 0.7rem; border-bottom: 1px solid #2a2f3a; font-size: 0.9rem; }
+  th { color:#94a3b8; font-weight: 600; }
+  .status { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.78rem; }
+  .status.active { background:#14532d; color:#86efac; }
+  .status.error { background:#450a0a; color:#fca5a5; }
+  .status.starting, .status.closed { background:#3f3f46; color:#d4d4d8; }
+  a { color:#7dd3fc; }
+  .actions a { margin-right: 0.6rem; font-size: 0.82rem; }
+</style>
+</head>
+<body>
+<h1>Panel de producción</h1>
+<table>
+  <thead>
+    <tr><th>Sala</th><th>Estado</th><th>Idiomas</th><th>Inactividad</th><th>Frases</th><th>Acciones</th></tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<script>
+async function refresh() {
+  const rooms = await (await fetch('/api/rooms')).json();
+  const rows = document.getElementById('rows');
+  rows.innerHTML = rooms.map(r => `
+    <tr>
+      <td>${r.title || r.id}</td>
+      <td><span class="status ${r.status}">${r.status}${r.last_error ? ': ' + r.last_error : ''}</span></td>
+      <td>${r.source_lang} → ${r.target_langs.join(', ')}</td>
+      <td>${r.idle_s !== null ? r.idle_s + 's' : '—'}</td>
+      <td>${r.utterance_count}</td>
+      <td class="actions">
+        <a href="watch.html?room=${r.id}" target="_blank">ver</a>
+        <a href="/api/rooms/${r.id}/export?format=srt">.srt</a>
+        <a href="/api/rooms/${r.id}/export?format=vtt">.vtt</a>
+      </td>
+    </tr>
+  `).join('');
+}
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

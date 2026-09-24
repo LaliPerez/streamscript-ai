@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StreamScript AI — Subtítulos en vivo</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background:#0b0d12; color:#f2f4f8; min-height:100vh; display:flex; flex-direction:column; }
+  header { display:flex; justify-content:space-between; align-items:center; padding: 0.75rem 1rem; border-bottom: 1px solid #2a2f3a; }
+  header select, header button { background:#1a1d24; color:#f2f4f8; border:1px solid #2a2f3a; border-radius:6px; padding:0.4rem 0.6rem; }
+  #status { font-size: 0.8rem; opacity: 0.7; }
+  main { flex:1; display:flex; align-items:center; justify-content:center; padding: 2rem 1.5rem; text-align:center; }
+  #caption { font-size: clamp(1.4rem, 4vw, 2.6rem); line-height: 1.4; max-width: 900px; }
+  #caption.high-contrast { color:#fff200; }
+  .controls { display:flex; gap:0.5rem; align-items:center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="controls">
+    <select id="lang"></select>
+    <button id="contrast">Alto contraste</button>
+  </div>
+  <span id="status">conectando…</span>
+</header>
+<main>
+  <div id="caption">Esperando subtítulos…</div>
+</main>
+<script src="watch.js"></script>
+<script>
+  const roomId = getParam('room');
+  const captionEl = document.getElementById('caption');
+  const statusEl = document.getElementById('status');
+  const langSel = document.getElementById('lang');
+
+  async function init() {
+    if (!roomId) { statusEl.textContent = 'falta ?room=<id>'; return; }
+    const room = await (await fetch(`/api/rooms/${roomId}`)).json();
+    const langs = [room.source_lang, ...room.target_langs.filter(l => l !== room.source_lang)];
+    langSel.innerHTML = langs.map(l => `<option value="${l}">${l.toUpperCase()}</option>`).join('');
+    langSel.value = room.target_langs[0] || room.source_lang;
+
+    connectSubtitles(roomId, (msg) => {
+      captionEl.textContent = pickLine(msg, langSel.value);
+    }, (msg) => {
+      statusEl.textContent = msg.status;
+    });
+  }
+
+  document.getElementById('contrast').addEventListener('click', () => {
+    captionEl.classList.toggle('high-contrast');
+  });
+
+  init();
+</script>
+</body>
+</html>

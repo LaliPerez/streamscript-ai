@@ -1,0 +1,12 @@
+# Glosario técnico inyectado en el prompt del modelo para mejorar precisión
+# en nombres propios y jerga que suele traducirse/transcribirse mal.
+terms:
+  - term: Kubernetes
+  - term: Vercel
+  - term: hydration
+    note: no traducir, es un término técnico de frontend
+  - term: Nerdearla
+    note: nombre propio del evento, no traducir
+  - term: WebSocket
+  - term: Gemini
+  - term: Gemma

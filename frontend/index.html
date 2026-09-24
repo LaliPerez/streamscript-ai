@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StreamScript AI — Salas activas</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; background:#0b0d12; color:#f2f4f8; }
+  h1 { font-size: 1.4rem; }
+  .room { border: 1px solid #2a2f3a; border-radius: 10px; padding: 1rem; margin: 0.75rem 0; display:flex; justify-content:space-between; align-items:center; }
+  .room a { color: #7dd3fc; text-decoration: none; font-weight: 600; }
+  .status { font-size: 0.8rem; padding: 0.15rem 0.5rem; border-radius: 999px; }
+  .status.active { background:#14532d; color:#86efac; }
+  .status.error { background:#450a0a; color:#fca5a5; }
+  .status.starting, .status.closed { background:#3f3f46; color:#d4d4d8; }
+  .links a { margin-right: 0.75rem; font-size: 0.85rem; }
+  #empty { opacity: 0.6; }
+</style>
+</head>
+<body>
+<h1>StreamScript AI — Salas activas</h1>
+<div id="rooms"></div>
+<p id="empty" style="display:none;">No hay salas activas todavía. Creá una vía <code>POST /api/rooms</code>.</p>
+<p><a href="dashboard.html" style="color:#7dd3fc">Ver panel de producción →</a></p>
+
+<script>
+async function load() {
+  const res = await fetch('/api/rooms');
+  const rooms = await res.json();
+  const container = document.getElementById('rooms');
+  container.innerHTML = '';
+  document.getElementById('empty').style.display = rooms.length ? 'none' : 'block';
+  for (const room of rooms) {
+    const div = document.createElement('div');
+    div.className = 'room';
+    div.innerHTML = `
+      <div>
+        <a href="watch.html?room=${room.id}">${room.title || room.id}</a>
+        <div class="links">
+          <a href="overlay.html?room=${room.id}" style="color:#94a3b8">overlay OBS</a>
+          <a href="/api/rooms/${room.id}/qr.png" style="color:#94a3b8">QR</a>
+        </div>
+      </div>
+      <span class="status ${room.status}">${room.status}</span>
+    `;
+    container.appendChild(div);
+  }
+}
+load();
+setInterval(load, 4000);
+</script>
+</body>
+</html>

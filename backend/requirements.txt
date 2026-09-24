@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn[standard]>=0.32
+google-genai==2.25.0
+python-dotenv>=1.0
+pydantic>=2.9
+websockets>=13.1
+qrcode[pil]>=8.0
+PyYAML>=6.0

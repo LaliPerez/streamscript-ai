@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+import asyncio
+import io
+import logging
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from app.export import FORMATTERS
+from app.rooms import manager
+from app.worker import run_room
+from app.ws_hub import hub
+
+logging.basicConfig(level=logging.INFO)
+
+app = FastAPI(title="StreamScript AI")
+
+
+class CreateRoomRequest(BaseModel):
+    title: str
+    source_lang: str = "en"
+    target_langs: list[str] = ["es"]
+    glossary_path: str | None = None
+
+
+@app.post("/api/rooms")
+async def create_room(req: CreateRoomRequest):
+    room = manager.create(req.title, req.source_lang, req.target_langs, req.glossary_path)
+    room.worker_task = asyncio.create_task(run_room(room))
+    return room.to_public_dict()
+
+
+@app.get("/api/rooms")
+async def list_rooms():
+    return [room.to_public_dict() for room in manager.list()]
+
+
+@app.get("/api/rooms/{room_id}")
+async def get_room(room_id: str):
+    room = manager.get(room_id)
+    if room is None:
+        raise HTTPException(404, "room not found")
+    return room.to_public_dict()
+
+
+@app.delete("/api/rooms/{room_id}")
+async def close_room(room_id: str):
+    room = await manager.close(room_id)
+    if room is None:
+        raise HTTPException(404, "room not found")
+    return room.to_public_dict()
+
+
+@app.get("/api/rooms/{room_id}/export")
+async def export_room(room_id: str, format: str = "srt", lang: str | None = None):
+    room = manager.get(room_id)
+    if room is None:
+        raise HTTPException(404, "room not found")
+    formatter = FORMATTERS.get(format)
+    if formatter is None:
+        raise HTTPException(400, f"unsupported format '{format}', use one of {list(FORMATTERS)}")
+    content = formatter(room.store.all(), lang)
+    media_types = {"srt": "text/plain", "vtt": "text/vtt", "txt": "text/plain"}
+    filename = f"{room.title or room.id}.{format}".replace(" ", "_")
+    return PlainTextResponse(
+        content,
+        media_type=media_types[format],
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/api/rooms/{room_id}/qr.png")
+async def room_qr(room_id: str, request: Request):
+    import qrcode
+
+    room = manager.get(room_id)
+    if room is None:
+        raise HTTPException(404, "room not found")
+    url = str(request.base_url).rstrip("/") + f"/watch.html?room={room_id}"
+    img = qrcode.make(url)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@app.websocket("/ws/ingest/{room_id}")
+async def ws_ingest(websocket: WebSocket, room_id: str):
+    room = manager.get(room_id)
+    if room is None:
+        await websocket.close(code=4404)
+        return
+    await websocket.accept()
+    try:
+        while True:
+            chunk = await websocket.receive_bytes()
+            try:
+                room.audio_queue.put_nowait(chunk)
+            except asyncio.QueueFull:
+                pass  # drop chunk rather than block the ingest client
+    except WebSocketDisconnect:
+        pass
+
+
+@app.websocket("/ws/subtitles/{room_id}")
+async def ws_subtitles(websocket: WebSocket, room_id: str):
+    room = manager.get(room_id)
+    if room is None:
+        await websocket.close(code=4404)
+        return
+    await websocket.accept()
+    await hub.subscribe(room_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # keepalive/pings from client; no client->server data expected
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await hub.unsubscribe(room_id, websocket)
+
+
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
+app.mount("/", StaticFiles(directory=_FRONTEND_DIR, html=True), name="frontend")

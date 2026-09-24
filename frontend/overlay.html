@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>StreamScript AI — Overlay OBS</title>
+<style>
+  html, body { margin:0; background: transparent; height:100%; }
+  body { display:flex; align-items:flex-end; justify-content:center; padding-bottom: 4vh; }
+  #caption {
+    font-family: system-ui, sans-serif;
+    font-size: clamp(1.6rem, 3.2vw, 3rem);
+    font-weight: 700;
+    color: #ffffff;
+    background: rgba(0,0,0,0.55);
+    padding: 0.4em 0.7em;
+    border-radius: 10px;
+    max-width: 85vw;
+    text-align: center;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+  }
+</style>
+</head>
+<body>
+<div id="caption"></div>
+<script src="watch.js"></script>
+<script>
+  const roomId = getParam('room');
+  const lang = getParam('lang'); // e.g. ?room=abc123&lang=es
+  const captionEl = document.getElementById('caption');
+  if (roomId) {
+    connectSubtitles(roomId, (msg) => {
+      captionEl.textContent = pickLine(msg, lang || msg.source_lang);
+    }, () => {});
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+services:
+  streamscript:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./config:/srv/config:ro
+      - streamscript-data:/srv/backend/data
+
+volumes:
+  streamscript-data:

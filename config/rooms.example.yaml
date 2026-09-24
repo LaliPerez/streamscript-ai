@@ -1,0 +1,15 @@
+# Ejemplo de definición de salas para crear en batch al arrancar un evento.
+# (No se auto-cargan todavía: usar como referencia para llamar a POST /api/rooms.)
+rooms:
+  - title: "Keynote — Sala Principal"
+    source_lang: en
+    target_langs: [es]
+    glossary_path: config/glossary.example.yaml
+  - title: "Track Backend"
+    source_lang: en
+    target_langs: [es]
+    glossary_path: config/glossary.example.yaml
+  - title: "Track Frontend"
+    source_lang: es
+    target_langs: [en]
+    glossary_path: config/glossary.example.yaml
