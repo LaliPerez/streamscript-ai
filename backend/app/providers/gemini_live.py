@@ -148,7 +148,7 @@ class GeminiLiveProvider(TranscriptionProvider):
 
     async def _translate_and_emit(self, source_text: str) -> None:
         translate_started = time.monotonic()
-        translations = await self._translate(source_text)
+        translations, ok = await self._translate(source_text)
         processing_ms = (time.monotonic() - translate_started) * 1000
         now_ms = int(time.time() * 1000)
         await self._events.put(
@@ -161,15 +161,16 @@ class GeminiLiveProvider(TranscriptionProvider):
                 start_ms=now_ms,
                 end_ms=now_ms,
                 processing_ms=processing_ms,
+                degraded=not ok,
             )
         )
 
-    async def _translate(self, text: str) -> dict[str, str]:
+    async def _translate(self, text: str) -> tuple[dict[str, str], bool]:
         prompt = _translate_prompt(text, self.source_lang, self.target_langs, self.glossary_block)
         for attempt in range(3):
             try:
                 response = await self._client.aio.models.generate_content(model=_TRANSLATE_MODEL, contents=prompt)
-                return json.loads(response.text)
+                return json.loads(response.text), True
             except (json.JSONDecodeError, TypeError, AttributeError):
                 logger.warning("translation response not valid JSON, falling back to source text: %r", text[:200])
                 break
@@ -178,7 +179,7 @@ class GeminiLiveProvider(TranscriptionProvider):
                     logger.exception("translation call failed after retries, falling back to source text")
                     break
                 await asyncio.sleep(0.5 * (attempt + 1))  # brief backoff for transient 503s
-        return {lang: text for lang in self.target_langs}
+        return {lang: text for lang in self.target_langs}, False
 
     async def receive_events(self) -> AsyncIterator[TranscriptEvent]:
         while True:

@@ -79,6 +79,9 @@ async def run_room(room: Room) -> None:
             room.last_activity = event.created_at
             if event.processing_ms is not None:
                 room.recent_latencies_ms.append(event.processing_ms)
+            if event.degraded:
+                room.error_count += 1
+                room.last_error = "translation degraded to source text (API error or rate limit)"
             await hub.broadcast(
                 room.id,
                 {
@@ -88,6 +91,7 @@ async def run_room(room: Room) -> None:
                     "source_lang": event.source_lang,
                     "translations": event.translations,
                     "is_final": event.is_final,
+                    "degraded": event.degraded,
                     "start_ms": event.start_ms,
                     "end_ms": event.end_ms,
                 },

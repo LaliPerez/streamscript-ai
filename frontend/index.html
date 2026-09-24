@@ -24,6 +24,12 @@
 <p><a href="dashboard.html" style="color:#7dd3fc">Ver panel de producción →</a></p>
 
 <script>
+function esc(s) {
+  const div = document.createElement('div');
+  div.textContent = s ?? '';
+  return div.innerHTML;
+}
+
 async function load() {
   const res = await fetch('/api/rooms');
   const rooms = await res.json();
@@ -35,13 +41,13 @@ async function load() {
     div.className = 'room';
     div.innerHTML = `
       <div>
-        <a href="watch.html?room=${room.id}">${room.title || room.id}</a>
+        <a href="watch.html?room=${encodeURIComponent(room.id)}">${esc(room.title || room.id)}</a>
         <div class="links">
-          <a href="overlay.html?room=${room.id}" style="color:#94a3b8">overlay OBS</a>
-          <a href="/api/rooms/${room.id}/qr.png" style="color:#94a3b8">QR</a>
+          <a href="overlay.html?room=${encodeURIComponent(room.id)}" style="color:#94a3b8">overlay OBS</a>
+          <a href="/api/rooms/${encodeURIComponent(room.id)}/qr.png" style="color:#94a3b8">QR</a>
         </div>
       </div>
-      <span class="status ${room.status}">${room.status}</span>
+      <span class="status ${esc(room.status)}">${esc(room.status)}</span>
     `;
     container.appendChild(div);
   }

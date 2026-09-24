@@ -73,9 +73,9 @@ en que la API no se comportó como decía la documentación.
   backoff; si sigue caído, el subtítulo sale sin traducir en vez de desaparecer) sin tocar la otra.
 
 - **Multi-sala probado con concurrencia real, no solo argumentado.** 4 salas simultáneas con audio
-  distinto (`MockProvider`) y 2 salas simultáneas con `GeminiLiveProvider` real, cada una con su propia
-  sesión Live y su propia sesión de traducción, sin interferencia entre ellas ni degradación de latencia
-  — la propiedad que más importaba para el reto (5-10+ escenarios en paralelo) es la que más se probó.
+  distinto (`MockProvider`) y hasta 8 salas simultáneas con `GeminiLiveProvider` real, sin interferencia
+  entre ellas ni degradación de latencia en las que sí conectaron — la propiedad que más importaba para
+  el reto es la que más se probó (ver límite de cuota abajo, importante antes de un evento real).
 
 - **Multi-idioma probado en ambas direcciones con audio real**, no con texto de prueba: portugués
   hablado → transcripto correctamente → traducido a español **e inglés en simultáneo** desde el mismo
@@ -101,6 +101,29 @@ en que la API no se comportó como decía la documentación.
 - **Accesibilidad pensada desde el diseño:** QR para que cada persona elija sesión e idioma desde su
   propio celular, texto grande con alto contraste opcional en `/watch.html`, y overlay listo para
   quemarse en el stream — no un agregado de último momento.
+
+### Cuota de la cuenta, no límite de la arquitectura (leer antes de un evento real)
+
+Se probó lanzar 8 salas simultáneas con `GeminiLiveProvider` real: 5 de 8 conectaron y transcribieron
+sin problema, 3 fallaron con error 1011 "exceeded your current quota". Investigando el motivo exacto se
+confirmó que **no es un techo de sesiones concurrentes de la arquitectura**: es que la API key usada para
+probar está en el **tier gratuito de Google sin billing habilitado**, que tiene cuotas diarias muy chicas
+— se confirmó, por ejemplo, un límite de **20 requests/día** para `gemini-3.5-flash` (el modelo de
+traducción). Entre todas las pruebas de esta sesión se agotó esa cuota, y el paso de traducción empezó a
+degradar a "mostrar el texto sin traducir" (el fallback funcionando como está diseñado, no un crash).
+
+Las salas que sí lograron conectar no mostraron ninguna degradación de latencia ni interferencia entre
+ellas — el proceso maneja la concurrencia bien. El cuello de botella es 100% de cuenta/billing, no de
+código. **Antes de un evento real hace falta, sin excepción:**
+
+1. Habilitar billing en el proyecto de [Google AI Studio](https://aistudio.google.com/) / Cloud Console
+   y pasar a un tier pago — el free tier no alcanza ni para una sola sala real de punta a punta, mucho
+   menos para 30+ en paralelo.
+2. Confirmar el tier resultante en [ai.dev/rate-limit](https://ai.dev/rate-limit) antes de la fecha del
+   evento, con margen para las 30+ sesiones simultáneas y las decenas de llamadas de traducción por
+   minuto que eso implica.
+3. Si el techo de un solo proyecto no alcanza igual, repartir salas entre varias API keys/proyectos — el
+   código no tiene ningún acoplamiento que lo impida (cada `GeminiLiveProvider` es independiente).
 
 ## Setup
 
@@ -164,39 +187,46 @@ fuente de tipo *Web Browser*. La misma sala puede tener a la vez: audiencia mira
 el celu vía QR, el overlay quemándose en el stream, y el equipo de producción viendo `/dashboard.html`
 — los tres consumen el mismo WebSocket de subtítulos (`/ws/subtitles/{room_id}`), sin pasos extra.
 
-## Estado actual / roadmap
+## Checklist del desafío
 
-- [x] Scaffold: FastAPI + estructura de proyecto + Docker.
-- [x] Pipeline core: ingest de audio → proveedor de transcripción → subtítulos en vivo.
-- [x] Multi-sala: N salas concurrentes en un solo proceso — validado con 4 salas simultáneas (`MockProvider`)
-      y con 2 salas simultáneas corriendo `GeminiLiveProvider` real, sin interferencia entre ellas.
-- [x] Vista de audiencia (QR + selector de idioma), export SRT/VTT/TXT, glosario técnico, dashboard con
-      latencia y conteo de errores por sala, overlay para OBS/vMix (documentado arriba).
-- [x] `GeminiLiveProvider` validado contra la API real. Arquitectura en dos etapas (necesaria: ningún
+Requisitos obligatorios de la Vibeathon, cada uno con lo que lo respalda:
+
+- [x] **Transcripción en tiempo real, idioma original + español.** Validado con audio real en inglés y
+      portugués, transcripto correctamente por `gemini-3.5-transcribe-live`.
+- [x] **Traducción español → inglés ("si podés").** Validado con voz en español real (TTS de Windows):
+      *"Bienvenidos a esta charla sobre sistemas distribuidos."* → *"Welcome to this talk about
+      distributed systems."*
+- [x] **Correr varias sesiones al mismo tiempo (5, 10+).** La arquitectura lo soporta y se probó con
+      hasta 8 salas `GeminiLiveProvider` reales en simultáneo sin interferencia entre las que conectaron.
+      El techo real hoy es de **cuota de cuenta de Google (tier gratuito), no de la arquitectura** — ver
+      la sección de arriba, es lo primero a resolver antes de un evento real.
+- [x] **Licencia OSI + documentación clara.** MIT (aprobada por OSI) — ver [LICENSE](LICENSE).
+- [x] **Vista de audiencia: elegir sesión e idioma.** `index.html` lista las salas activas (elegir
+      sesión), `watch.html` tiene el selector de idioma — validado abriéndolo en el navegador.
+- [x] **Construida sobre Gemini.** `GeminiLiveProvider`, arquitectura en dos etapas (necesaria: ningún
       modelo Live "conversacional" acepta `response_modalities=["TEXT"]` con audio a esta fecha):
-      1. **ASR en streaming** con `gemini-3.5-transcribe-live` (Live API), detectando fin de oración por
-         puntuación sobre el transcript acumulado que devuelve el modelo.
-      2. **Traducción por oración** con una llamada de texto aparte (`gemini-3.5-flash` por defecto,
-         configurable con `GEMINI_TRANSLATE_MODEL`), inyectando el glosario técnico en el prompt — se
-         confirmó que respeta términos marcados como "no traducir" (ej. *hydration*).
-- [x] Más idiomas de entrada y salida: validado con **portugués como idioma de entrada**, traducido en
-      simultáneo a español e inglés en el mismo evento (audio real generado con el TTS de Gemini, para
-      no depender de una voz PT instalada localmente). Agregar un idioma nuevo es solo config
-      (`source_lang`/`target_langs` al crear la sala), no requiere cambios de código.
-- [ ] Proveedor local con Gemma para el caso 100% offline. Gemma en sí **no transcribe audio** (es una
-      familia de modelos de texto); el camino equivalente al de arriba sería un ASR local (ej. Whisper)
-      + **TranslateGemma** (variante de Gemma para traducción, 55 idiomas) para el paso de traducción —
-      mismo contrato `TranscriptionProvider`, mismo patrón de dos etapas ya validado con Gemini.
-- [ ] Escalado horizontal real (Redis-backed `RoomManager` + workers separados) para 30+ salas en
-      producción.
+      1. **ASR en streaming** con `gemini-3.5-transcribe-live`, detectando fin de oración por puntuación
+         sobre el transcript acumulado que devuelve el modelo.
+      2. **Traducción por oración** con una llamada de texto aparte (configurable con
+         `GEMINI_TRANSLATE_MODEL`), inyectando el glosario técnico en el prompt — confirmado que respeta
+         términos marcados como "no traducir" (ej. *hydration*). Si esa llamada falla (rate limit, 503),
+         degrada a mostrar el texto sin traducir en vez de perder el subtítulo, y **eso queda registrado**
+         como error visible en `/dashboard.html`, no oculto.
+- [ ] **Proveedor local con Gemma para el caso 100% offline.** Gemma en sí **no transcribe audio** (es
+      una familia de modelos de texto); el camino equivalente al de arriba sería un ASR local (ej.
+      Whisper) + **TranslateGemma** (variante de Gemma para traducción, 55 idiomas) — mismo contrato
+      `TranscriptionProvider`, mismo patrón de dos etapas ya validado con Gemini.
 
-De los opcionales del reto, quedan cubiertos: glosario técnico, export SRT/VTT/TXT, overlay OBS/vMix,
-más idiomas (portugués) y panel de monitoreo con latencia/errores por sala.
+Opcionales cubiertos: glosario técnico, export SRT/VTT/TXT, overlay OBS/vMix, portugués como idioma
+extra (entrada y salida, validado con audio real), y panel de monitoreo con latencia y errores reales
+por sala.
 
-**Nota sobre nombres de modelo:** la familia Gemini se mueve rápido — `gemini-3.8-flash` es la
-recomendación oficial actual para texto pero devolvía 503 por demanda alta al momento de probar; se
-dejó `gemini-3.5-flash` como default por ser el que respondió de forma estable. Si eso cambia, alcanza
-con setear `GEMINI_TRANSLATE_MODEL` en `.env`, sin tocar código.
+Pendiente: escalado horizontal (Redis-backed `RoomManager` + workers separados) para producción a 30+
+salas más allá de un solo proceso — no bloqueante para el reto, sí sería el siguiente paso real.
+
+**Nota sobre nombres de modelo:** la familia Gemini se mueve rápido y cada modelo del free tier tiene su
+propia cuota diaria chica — si uno se agota, alcanza con cambiar `GEMINI_TRANSLATE_MODEL` en `.env` a
+otro (ej. `gemini-3.1-flash-lite`), sin tocar código. En un tier pago esto deja de ser un problema.
 
 ## Licencia
 

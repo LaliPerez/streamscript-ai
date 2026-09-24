@@ -26,6 +26,10 @@ class TranscriptEvent:
     # to produce this event, if it tracks that. None for providers that don't
     # have a measurable processing step (e.g. MockProvider).
     processing_ms: float | None = None
+    # False if the provider had to degrade (e.g. translation API failure,
+    # falling back to un-translated source text) instead of doing its job
+    # properly. Lets the dashboard surface silent degradation.
+    degraded: bool = False
 
 
 class TranscriptionProvider(ABC):

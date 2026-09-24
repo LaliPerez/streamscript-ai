@@ -118,6 +118,10 @@ async def ws_subtitles(websocket: WebSocket, room_id: str):
         return
     await websocket.accept()
     await hub.subscribe(room_id, websocket)
+    # Status broadcasts only fire on change, so a viewer connecting after the
+    # room already went active (the common case) would otherwise never learn
+    # the current status and stay stuck on "conectando..." forever.
+    await websocket.send_json({"type": "status", "status": room.status, "detail": room.last_error})
     try:
         while True:
             await websocket.receive_text()  # keepalive/pings from client; no client->server data expected

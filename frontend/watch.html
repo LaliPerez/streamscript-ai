@@ -35,13 +35,23 @@
 
   async function init() {
     if (!roomId) { statusEl.textContent = 'falta ?room=<id>'; return; }
-    const room = await (await fetch(`/api/rooms/${roomId}`)).json();
+    const room = await (await fetch(`/api/rooms/${encodeURIComponent(roomId)}`)).json();
     const langs = [room.source_lang, ...room.target_langs.filter(l => l !== room.source_lang)];
-    langSel.innerHTML = langs.map(l => `<option value="${l}">${l.toUpperCase()}</option>`).join('');
+    langSel.innerHTML = '';
+    for (const l of langs) {
+      const opt = document.createElement('option');
+      opt.value = l;
+      opt.textContent = String(l).toUpperCase();
+      langSel.appendChild(opt);
+    }
     langSel.value = room.target_langs[0] || room.source_lang;
 
     connectSubtitles(roomId, (msg) => {
+      const showingTranslation = langSel.value !== msg.source_lang;
       captionEl.textContent = pickLine(msg, langSel.value);
+      captionEl.title = (msg.degraded && showingTranslation)
+        ? 'Traducción no disponible en este momento — mostrando el texto original'
+        : '';
     }, (msg) => {
       statusEl.textContent = msg.status;
     });
