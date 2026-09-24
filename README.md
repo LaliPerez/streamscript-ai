@@ -58,6 +58,64 @@ para una demo con varias salas simultáneas). Para producción real a 30+ salas,
 se puede respaldar en Redis y correr varios workers horizontales con pub/sub para el fan-out — no
 necesario para probar el concepto, sí documentado como el siguiente paso.
 
+## Decisiones de arquitectura (y por qué)
+
+Cada decisión de abajo tuvo una alternativa más obvia que se descartó a propósito. El criterio general
+fue: priorizar lo que reduce fricción para que **cualquier conferencia lo pueda adoptar**, y lo que
+reduce el radio de impacto de lo que todavía no sabíamos sobre la API de Gemini al empezar.
+
+- **¿Por qué Gemini/Google AI y no OpenAI (Whisper) + otro proveedor para traducir?** El reto lo pide
+  explícitamente ("te recomendamos construirla sobre las capacidades de audio de Gemini"), pero además
+  es la opción técnicamente más directa: `gemini-3.5-transcribe-live` es un modelo dedicado a ASR en
+  streaming de baja latencia con soporte a 85+ idiomas vía WebSocket — no hay que armar un pipeline
+  propio de VAD + chunking + llamadas batch a un modelo de transcripción no pensado para tiempo real.
+  Usar el mismo proveedor para ASR y para traducción también simplifica la integración: un solo SDK, una
+  sola autenticación, un solo lugar donde vive la lógica de reintentos — en vez de coordinar dos
+  proveedores con comportamientos y límites de cuota distintos.
+
+- **¿Por qué Gemma (vía TranslateGemma) para el camino 100% local, y no Llama o Mistral?** También lo
+  sugiere el reto, pero la razón técnica es que **Gemma tiene una variante dedicada a traducción**
+  (TranslateGemma, 55 idiomas) que encaja exacto en la segunda etapa que ya existe (traducción por
+  oración, llamada de texto separada) sin rediseñar nada — solo hay que escribir un
+  `GemmaLocalProvider` que implemente el mismo contrato. Ser la misma familia de modelos que Gemini
+  (ambos de Google) también significa reusar la misma forma de pensar los prompts en vez de aprender el
+  comportamiento de un ecosistema distinto. La transcripción en ese camino local no la hace Gemma (no
+  transcribe audio) sino un ASR local aparte (ej. Whisper) — ver el ítem del roadmap.
+
+- **¿Por qué la arquitectura en dos etapas (ASR + traducción separada), en vez de un solo modelo Live
+  conversacional?** No fue la primera opción: se intentó primero pedirle a un modelo Live "de chat" que
+  transcriba y traduzca en un solo llamado. La API real lo rechazó (ningún modelo Live conversacional
+  acepta `response_modalities=["TEXT"]` con audio de entrada, confirmado contra la API). El pivot a dos
+  etapas resultó, de yapa, en algo más robusto: cada etapa se puede reintentar, cachear o reemplazar por
+  separado (una traducción que falla degrada a texto sin traducir en vez de tirar abajo la transcripción).
+
+- **¿Por qué un solo proceso con asyncio para multi-sala, en vez de arrancar con colas/microservicios?**
+  La carga es I/O-bound (esperar respuestas de red de Gemini), no CPU-bound, así que asyncio de por sí
+  ya soporta bien decenas de sesiones concurrentes sin la complejidad operativa de un sistema
+  distribuido. Y la prueba real mostró que el techo actual es cuota de cuenta de Google, no el proceso
+  — invertir tiempo de hackathon en Redis/colas antes de confirmar eso hubiera sido resolver el problema
+  equivocado. La migración sigue disponible sin reescribir nada (`RoomManager` es la única pieza a
+  cambiar) el día que el techo real sea el proceso y no la cuenta.
+
+- **¿Por qué JSONL + memoria para transcripts, en vez de una base de datos?** Los transcripts se
+  escriben una vez y se leen para exportar — no hay queries relacionales que justifiquen Postgres/Mongo,
+  y sumar una base de datos es otro contenedor, otro backup, otra cosa que puede romperse en el
+  despliegue de una conferencia que solo quiere `docker compose up`. JSONL es legible a simple vista y
+  trivial de reprocesar si hace falta.
+
+- **¿Por qué HTML/JS plano en vez de React/Vite?** La promesa central del reto es "cualquier conferencia
+  lo despliega" — un build step de frontend (versiones de Node, lockfiles, tiempo de compilación) es
+  fricción que no compra nada para un dashboard y una vista de audiencia de esta complejidad.
+
+- **¿Por qué degradar a texto sin traducir en vez de ocultar el subtítulo cuando la traducción falla?**
+  Es una herramienta de accesibilidad en vivo: para alguien que depende del subtítulo, ver el texto en
+  el idioma original tres segundos es mejor que no ver nada. Ocultar el error hubiera sido más prolijo
+  de programar, pero peor para quien mira `/watch.html` en ese momento.
+
+- **¿Por qué MIT y no Apache-2.0/GPL?** El reto pide una licencia aprobada por OSI, sin exigir más. MIT
+  es la que menos fricción legal genera para que cualquier conferencia —incluso con sponsors o fines
+  comerciales— la adopte sin tener que consultarlo con un abogado primero.
+
 ## Fortalezas de la arquitectura
 
 Ninguna de las afirmaciones de esta sección es "debería funcionar": todo lo que sigue se corrió de
