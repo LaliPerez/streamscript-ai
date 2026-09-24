@@ -68,8 +68,16 @@
   .latency-warn { background: var(--warn-fg); }
   .latency-bad { background: var(--err-fg); }
 
-  .actions a { margin-right: 0.6rem; font-size: 0.82rem; text-decoration: none; }
-  .actions a:hover { text-decoration: underline; }
+  .actions { display:flex; gap: 0.35rem; flex-wrap: wrap; }
+  .action-btn {
+    display:inline-flex; align-items:center; gap: 0.3rem;
+    background: var(--bg-alt); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 7px; padding: 0.32rem 0.55rem; font-size: 0.74rem; font-weight: 600;
+    text-decoration: none; line-height: 1; white-space: nowrap;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .action-btn svg { flex: none; }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
   .errcount { color: var(--err-fg); font-weight: 700; }
   .muted { color: var(--text-faint); }
   #empty, #no-match { padding: 2.5rem; text-align: center; color: var(--text-faint); border: 1px dashed var(--border); border-radius: var(--radius); }
@@ -115,6 +123,12 @@
 <p id="no-match" style="display:none;">Ninguna sala coincide con el filtro actual.</p>
 
 <script>
+const ICONS = {
+  eye: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  qr: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17h3M17 14v3M20 17v3M17 20h3"/></svg>',
+  download: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4M4 21h16"/></svg>',
+};
+
 const statusLabel = { active: 'en vivo', starting: 'iniciando', error: 'error', closed: 'cerrada' };
 const FILTERS = ['all', 'active', 'error', 'starting', 'closed'];
 const filterLabel = { all: 'Todas', active: 'En vivo', error: 'Error', starting: 'Iniciando', closed: 'Cerradas' };
@@ -211,10 +225,18 @@ function renderRows() {
       <td>${r.utterance_count}</td>
       <td class="${r.error_count > 0 ? 'errcount' : 'muted'}">${r.error_count}</td>
       <td class="actions">
-        <a href="watch.html?room=${id}" target="_blank">ver</a>
-        <a href="qr.html?room=${id}" target="_blank">QR</a>
-        <a href="/api/rooms/${id}/export?format=srt">.srt</a>
-        <a href="/api/rooms/${id}/export?format=vtt">.vtt</a>
+        <a class="action-btn" href="watch.html?room=${id}" target="_blank" title="Ver subtítulos en vivo">
+          ${ICONS.eye} Ver
+        </a>
+        <a class="action-btn" href="qr.html?room=${id}" target="_blank" title="QR para proyectar">
+          ${ICONS.qr} QR
+        </a>
+        <a class="action-btn" href="/api/rooms/${id}/export?format=srt" title="Exportar subtítulos en formato SRT">
+          ${ICONS.download} SRT
+        </a>
+        <a class="action-btn" href="/api/rooms/${id}/export?format=vtt" title="Exportar subtítulos en formato VTT">
+          ${ICONS.download} VTT
+        </a>
       </td>
     </tr>
   `;

@@ -24,8 +24,15 @@
   .status.starting { background: var(--warn-bg); color: var(--warn-fg); }
   .status.closed { background: var(--bg-alt); color: var(--text-faint); }
   .meta { font-size: 0.78rem; color: var(--text-faint); margin-top: 0.25rem; }
-  .links a { margin-right: 0.9rem; font-size: 0.82rem; color: var(--text-dim); text-decoration: none; }
-  .links a:hover { color: var(--accent); }
+  .links { display:flex; gap: 0.4rem; margin-top: 0.6rem; flex-wrap: wrap; }
+  .action-btn {
+    display:inline-flex; align-items:center; gap: 0.3rem;
+    background: var(--bg-alt); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 7px; padding: 0.3rem 0.55rem; font-size: 0.76rem; font-weight: 600;
+    text-decoration: none; line-height: 1; transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .action-btn svg { flex: none; }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
   #empty { opacity: 0.6; border: 1px dashed var(--border); border-radius: var(--radius); padding: 1.5rem; text-align: center; }
   #empty code { color: var(--accent); }
   footer { margin-top: 2.5rem; font-size: 0.82rem; display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 0.75rem; }
@@ -55,6 +62,11 @@ function esc(s) {
   return div.innerHTML;
 }
 
+const ICONS = {
+  overlay: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>',
+  qr: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17h3M17 14v3M20 17v3M17 20h3"/></svg>',
+};
+
 const statusLabel = { active: 'en vivo', starting: 'iniciando', error: 'error', closed: 'cerrada' };
 
 async function load() {
@@ -72,8 +84,12 @@ async function load() {
         <a class="title" href="watch.html?room=${encodeURIComponent(room.id)}">${esc(room.title || room.id)}</a>
         <div class="meta">${esc(room.source_lang)} → ${esc(room.target_langs.join(', '))}</div>
         <div class="links">
-          <a href="overlay.html?room=${encodeURIComponent(room.id)}">overlay OBS</a>
-          <a href="qr.html?room=${encodeURIComponent(room.id)}">QR para proyectar</a>
+          <a class="action-btn" href="overlay.html?room=${encodeURIComponent(room.id)}" target="_blank" title="Overlay para OBS/vMix">
+            ${ICONS.overlay} Overlay
+          </a>
+          <a class="action-btn" href="qr.html?room=${encodeURIComponent(room.id)}" title="QR para proyectar en pantalla">
+            ${ICONS.qr} QR
+          </a>
         </div>
       </div>
       <span class="status ${esc(room.status)}">${dot}${esc(statusLabel[room.status] || room.status)}</span>
