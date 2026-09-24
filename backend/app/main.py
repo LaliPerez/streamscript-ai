@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -22,6 +24,23 @@ from app.ws_hub import hub
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="StreamScript AI")
+
+# Open by default ("*") so any conference's own site can call the REST API
+# (POST/GET /api/rooms/...) from their own domain without forking the code.
+# WebSocket connections aren't gated by CORS in the first place -- browsers
+# don't enforce the same-origin policy on ws:// handshakes -- so this only
+# affects the fetch()/XHR-based endpoints. Lock down to specific origins in
+# production via CORS_ALLOWED_ORIGINS (comma-separated). No cookies/session
+# auth are used here, so allowing all origins doesn't expose any credentialed
+# state -- allow_credentials stays False, which is also what makes "*" valid.
+_cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class CreateRoomRequest(BaseModel):
