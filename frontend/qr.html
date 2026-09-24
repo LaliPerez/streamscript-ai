@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StreamScript AI — QR de sala</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%237dd3fc'/%3E%3Crect x='6' y='10' width='2.4' height='8' rx='1.2' fill='%230a0c11'/%3E%3Crect x='10.8' y='6' width='2.4' height='12' rx='1.2' fill='%230a0c11'/%3E%3Crect x='15.6' y='9' width='2.4' height='9' rx='1.2' fill='%230a0c11'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="theme.css" />
+<style>
+  body { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 2rem 1.5rem; }
+  main { text-align:center; max-width: 480px; width: 100%; }
+  .badge {
+    display:inline-flex; align-items:center; gap:0.4rem; font-size: 0.85rem; font-weight: 600;
+    color: var(--text-dim); margin-bottom: 1.25rem;
+  }
+  .qr-frame {
+    background: #ffffff; border-radius: 18px; padding: 1.4rem; display:inline-block;
+    box-shadow: 0 0 0 1px var(--border), 0 20px 60px -20px rgba(125, 211, 252, 0.25);
+  }
+  .qr-frame img { display:block; width: min(56vw, 340px); height: auto; }
+  h1 { font-size: clamp(1.3rem, 3vw, 1.8rem); margin: 1.6rem 0 0.4rem; }
+  #caption { font-size: 1.02rem; color: var(--text-dim); line-height: 1.5; margin: 0; }
+  #langs { margin-top: 1rem; font-size: 0.85rem; color: var(--text-faint); }
+  .edit-row {
+    margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border);
+    display:flex; gap: 0.5rem; align-items:center; justify-content:center; flex-wrap: wrap;
+  }
+  .edit-row input {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 7px; padding: 0.45rem 0.65rem; font-family: var(--font); font-size: 0.82rem;
+    flex: 1 1 220px; min-width: 0;
+  }
+  .edit-row button {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 7px; padding: 0.45rem 0.8rem; font-size: 0.82rem; cursor: pointer;
+  }
+  .edit-row button:hover { border-color: var(--accent); }
+  @media print {
+    .edit-row, .badge { display: none; }
+    body { background: white; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <span class="badge"><span class="live-dot"></span> StreamScript AI</span>
+  <div class="qr-frame">
+    <img id="qr-img" alt="Código QR de la sala" />
+  </div>
+  <h1 id="title">Cargando…</h1>
+  <p id="caption"></p>
+  <p id="langs"></p>
+
+  <div class="edit-row">
+    <input id="caption-input" type="text" placeholder="Personalizar el texto (opcional)" />
+    <button id="apply">Aplicar</button>
+    <button id="print">Imprimir</button>
+  </div>
+
+  <p style="margin-top: 1.75rem;">
+    <a class="nerdearla-credit" href="https://nerdearla.com/" target="_blank" rel="noopener">
+      <span class="dot"></span> Construido para la <strong>Nerdearla</strong> Vibeathon 2026
+    </a>
+  </p>
+</main>
+
+<script>
+function getParam(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+const roomId = getParam('room');
+const titleEl = document.getElementById('title');
+const captionEl = document.getElementById('caption');
+const langsEl = document.getElementById('langs');
+const captionInput = document.getElementById('caption-input');
+
+function defaultCaption(room) {
+  return `Escaneá con la cámara de tu celular para ver los subtítulos en vivo de "${room.title || room.id}".`;
+}
+
+function applyCaption(text) {
+  captionEl.textContent = text;
+  const url = new URL(window.location.href);
+  if (text) url.searchParams.set('caption', text); else url.searchParams.delete('caption');
+  history.replaceState(null, '', url);
+}
+
+async function init() {
+  if (!roomId) { titleEl.textContent = 'Falta ?room=<id> en la URL'; return; }
+  const room = await (await fetch(`/api/rooms/${encodeURIComponent(roomId)}`)).json();
+
+  document.getElementById('qr-img').src = `/api/rooms/${encodeURIComponent(roomId)}/qr.png`;
+  titleEl.textContent = room.title || room.id;
+  langsEl.textContent = `${room.source_lang.toUpperCase()} → ${room.target_langs.map(l => l.toUpperCase()).join(', ')}`;
+
+  const initialCaption = getParam('caption') || defaultCaption(room);
+  captionInput.value = initialCaption;
+  applyCaption(initialCaption);
+}
+
+document.getElementById('apply').addEventListener('click', () => applyCaption(captionInput.value));
+captionInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyCaption(captionInput.value); });
+document.getElementById('print').addEventListener('click', () => window.print());
+
+init();
+</script>
+</body>
+</html>

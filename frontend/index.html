@@ -28,7 +28,7 @@
   .links a:hover { color: var(--accent); }
   #empty { opacity: 0.6; border: 1px dashed var(--border); border-radius: var(--radius); padding: 1.5rem; text-align: center; }
   #empty code { color: var(--accent); }
-  footer { margin-top: 2.5rem; font-size: 0.82rem; }
+  footer { margin-top: 2.5rem; font-size: 0.82rem; display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 0.75rem; }
 </style>
 </head>
 <body>
@@ -41,7 +41,12 @@
 
 <div id="rooms"></div>
 <p id="empty" style="display:none;">No hay salas activas todavía. Creá una con <code>POST /api/rooms</code>.</p>
-<footer><a href="dashboard.html">Ver panel de producción →</a></footer>
+<footer>
+  <a href="dashboard.html">Ver panel de producción →</a>
+  <a class="nerdearla-credit" href="https://nerdearla.com/" target="_blank" rel="noopener">
+    <span class="dot"></span> Construido para la <strong>Nerdearla</strong> Vibeathon 2026
+  </a>
+</footer>
 
 <script>
 function esc(s) {
@@ -68,7 +73,7 @@ async function load() {
         <div class="meta">${esc(room.source_lang)} → ${esc(room.target_langs.join(', '))}</div>
         <div class="links">
           <a href="overlay.html?room=${encodeURIComponent(room.id)}">overlay OBS</a>
-          <a href="/api/rooms/${encodeURIComponent(room.id)}/qr.png">QR</a>
+          <a href="qr.html?room=${encodeURIComponent(room.id)}">QR para proyectar</a>
         </div>
       </div>
       <span class="status ${esc(room.status)}">${dot}${esc(statusLabel[room.status] || room.status)}</span>

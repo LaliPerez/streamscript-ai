@@ -7,24 +7,73 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%237dd3fc'/%3E%3Crect x='6' y='10' width='2.4' height='8' rx='1.2' fill='%230a0c11'/%3E%3Crect x='10.8' y='6' width='2.4' height='12' rx='1.2' fill='%230a0c11'/%3E%3Crect x='15.6' y='9' width='2.4' height='9' rx='1.2' fill='%230a0c11'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="theme.css" />
 <style>
-  body { padding: 1.75rem; max-width: 1080px; margin: 0 auto; }
-  header { display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem; }
-  h1 { font-size: 0.95rem; font-weight: 600; color: var(--text-dim); margin: 0; letter-spacing: 0.02em; text-transform: uppercase; }
+  body { padding: 1.75rem; max-width: 1180px; margin: 0 auto 4rem; }
+
+  header { display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
+  header .right { display:flex; align-items:center; gap: 1rem; font-size: 0.82rem; color: var(--text-faint); }
+  header .right a { color: var(--text-dim); text-decoration:none; }
+  header .right a:hover { color: var(--accent); }
+
+  /* --- stat cards --- */
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 0.95rem 1.1rem;
+  }
+  .stat .label { font-size: 0.72rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .stat .value { font-size: 1.65rem; font-weight: 700; margin-top: 0.3rem; display:flex; align-items:baseline; gap:0.4rem; }
+  .stat .value .unit { font-size: 0.95rem; font-weight: 500; color: var(--text-faint); }
+  .stat.warn .value { color: var(--warn-fg); }
+  .stat.err .value { color: var(--err-fg); }
+  .stat.ok .value { color: var(--ok-fg); }
+
+  /* --- toolbar --- */
+  .toolbar { display:flex; align-items:center; gap: 0.6rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
+  .toolbar input[type="search"] {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 0.5rem 0.75rem; font-family: var(--font); font-size: 0.85rem;
+    min-width: 200px; flex: 1 1 200px;
+  }
+  .toolbar input[type="search"]:focus { outline: none; border-color: var(--accent); }
+  .pills { display:flex; gap: 0.4rem; flex-wrap: wrap; }
+  .pill {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 999px; padding: 0.4rem 0.75rem; font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; display:flex; align-items:center; gap: 0.35rem; user-select: none;
+  }
+  .pill:hover { border-color: var(--accent); }
+  .pill.active { background: var(--accent); color: #0a0c11; border-color: var(--accent); }
+  .pill .count { opacity: 0.75; }
+  label.switch { display:flex; align-items:center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-dim); cursor: pointer; margin-left: auto; }
+
+  /* --- table --- */
   table { width:100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
-  th, td { text-align:left; padding: 0.65rem 0.8rem; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+  th, td { text-align:left; padding: 0.65rem 0.8rem; border-bottom: 1px solid var(--border); font-size: 0.86rem; vertical-align: middle; }
   tbody tr:last-child td { border-bottom: none; }
+  tbody tr { border-left: 3px solid transparent; }
   tbody tr:hover { background: var(--bg-alt); }
-  th { color: var(--text-dim); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
-  .status { padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; display:inline-flex; align-items:center; gap:0.35rem; }
+  tbody tr.problem { border-left-color: var(--err-fg); }
+  th { color: var(--text-dim); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; position: sticky; top: 0; background: var(--surface); }
+
+  .status { padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; display:inline-flex; align-items:center; gap:0.35rem; white-space:nowrap; }
   .status.active { background: var(--ok-bg); color: var(--ok-fg); }
   .status.error { background: var(--err-bg); color: var(--err-fg); }
   .status.starting { background: var(--warn-bg); color: var(--warn-fg); }
   .status.closed { background: var(--bg-alt); color: var(--text-faint); }
+
+  .latency-cell { display:flex; align-items:center; gap: 0.5rem; }
+  .latency-bar { width: 56px; height: 5px; border-radius: 3px; background: var(--bg-alt); overflow: hidden; flex: none; }
+  .latency-bar > div { height: 100%; border-radius: 3px; }
+  .latency-good { background: var(--ok-fg); }
+  .latency-warn { background: var(--warn-fg); }
+  .latency-bad { background: var(--err-fg); }
+
   .actions a { margin-right: 0.6rem; font-size: 0.82rem; text-decoration: none; }
   .actions a:hover { text-decoration: underline; }
-  .errcount { color: var(--err-fg); font-weight: 600; }
+  .errcount { color: var(--err-fg); font-weight: 700; }
   .muted { color: var(--text-faint); }
-  #empty { padding: 2.5rem; text-align: center; color: var(--text-faint); border: 1px dashed var(--border); border-radius: var(--radius); }
+  #empty, #no-match { padding: 2.5rem; text-align: center; color: var(--text-faint); border: 1px dashed var(--border); border-radius: var(--radius); }
+  #updated { font-size: 0.76rem; color: var(--text-faint); }
 </style>
 </head>
 <body>
@@ -33,8 +82,25 @@
     <svg width="22" height="22" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#7dd3fc"/><rect x="6" y="10" width="2.4" height="8" rx="1.2" fill="#0a0c11"/><rect x="10.8" y="6" width="2.4" height="12" rx="1.2" fill="#0a0c11"/><rect x="15.6" y="9" width="2.4" height="9" rx="1.2" fill="#0a0c11"/></svg>
     StreamScript AI <span class="tag">panel de producción</span>
   </span>
-  <a href="index.html">← salas activas</a>
+  <div class="right">
+    <span id="updated">—</span>
+    <a href="index.html">← salas activas</a>
+    <a class="nerdearla-credit" href="https://nerdearla.com/" target="_blank" rel="noopener">
+      <span class="dot"></span> <strong>Nerdearla</strong> Vibeathon 2026
+    </a>
+  </div>
 </header>
+
+<div class="stats" id="stats"></div>
+
+<div class="toolbar">
+  <input type="search" id="search" placeholder="Buscar sala por nombre o id…" />
+  <div class="pills" id="pills"></div>
+  <label class="switch">
+    <input type="checkbox" id="problems-first" checked />
+    Problemas primero
+  </label>
+</div>
 
 <table>
   <thead>
@@ -46,25 +112,90 @@
   <tbody id="rows"></tbody>
 </table>
 <p id="empty" style="display:none;">No hay salas todavía.</p>
+<p id="no-match" style="display:none;">Ninguna sala coincide con el filtro actual.</p>
 
 <script>
+const statusLabel = { active: 'en vivo', starting: 'iniciando', error: 'error', closed: 'cerrada' };
+const FILTERS = ['all', 'active', 'error', 'starting', 'closed'];
+const filterLabel = { all: 'Todas', active: 'En vivo', error: 'Error', starting: 'Iniciando', closed: 'Cerradas' };
+
+let currentFilter = 'all';
+let allRooms = [];
+
 function esc(s) {
   const div = document.createElement('div');
   div.textContent = s ?? '';
   return div.innerHTML;
 }
 
-const statusLabel = { active: 'en vivo', starting: 'iniciando', error: 'error', closed: 'cerrada' };
+function isProblem(r) {
+  return r.status === 'error' || r.error_count > 0 || (r.avg_latency_ms !== null && r.avg_latency_ms > 4000);
+}
 
-async function refresh() {
-  const rooms = await (await fetch('/api/rooms')).json();
-  const rows = document.getElementById('rows');
-  document.getElementById('empty').style.display = rooms.length ? 'none' : 'block';
-  rows.innerHTML = rooms.map(r => {
+function latencyClass(ms) {
+  if (ms === null) return null;
+  if (ms > 4000) return 'latency-bad';
+  if (ms > 2000) return 'latency-warn';
+  return 'latency-good';
+}
+
+function renderStats(rooms) {
+  const active = rooms.filter(r => r.status === 'active').length;
+  const errors = rooms.reduce((sum, r) => sum + r.error_count, 0);
+  const utterances = rooms.reduce((sum, r) => sum + r.utterance_count, 0);
+  const withLatency = rooms.filter(r => r.avg_latency_ms !== null);
+  const avgLatency = withLatency.length
+    ? Math.round(withLatency.reduce((sum, r) => sum + r.avg_latency_ms, 0) / withLatency.length)
+    : null;
+
+  const cards = [
+    { label: 'Salas en vivo', value: `${active}`, unit: `/ ${rooms.length}`, cls: active > 0 ? 'ok' : '' },
+    { label: 'Latencia promedio', value: avgLatency !== null ? avgLatency : '—', unit: avgLatency !== null ? 'ms' : '', cls: avgLatency > 4000 ? 'err' : avgLatency > 2000 ? 'warn' : '' },
+    { label: 'Errores totales', value: `${errors}`, unit: '', cls: errors > 0 ? 'err' : '' },
+    { label: 'Frases transcriptas', value: `${utterances}`, unit: '', cls: '' },
+  ];
+  document.getElementById('stats').innerHTML = cards.map(c => `
+    <div class="stat ${c.cls}">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}${c.unit ? `<span class="unit">${c.unit}</span>` : ''}</div>
+    </div>
+  `).join('');
+}
+
+function renderPills(rooms) {
+  const counts = { all: rooms.length };
+  for (const f of FILTERS.slice(1)) counts[f] = rooms.filter(r => r.status === f).length;
+  document.getElementById('pills').innerHTML = FILTERS.map(f => `
+    <span class="pill ${f === currentFilter ? 'active' : ''}" data-filter="${f}">
+      ${filterLabel[f]} <span class="count">${counts[f]}</span>
+    </span>
+  `).join('');
+  document.querySelectorAll('.pill').forEach(el => {
+    el.addEventListener('click', () => { currentFilter = el.dataset.filter; renderRows(); renderPills(allRooms); });
+  });
+}
+
+function renderRows() {
+  const search = document.getElementById('search').value.trim().toLowerCase();
+  const problemsFirst = document.getElementById('problems-first').checked;
+
+  let rooms = allRooms.filter(r => currentFilter === 'all' || r.status === currentFilter);
+  if (search) {
+    rooms = rooms.filter(r => (r.title || '').toLowerCase().includes(search) || r.id.toLowerCase().includes(search));
+  }
+  if (problemsFirst) {
+    rooms = [...rooms].sort((a, b) => Number(isProblem(b)) - Number(isProblem(a)));
+  }
+
+  document.getElementById('no-match').style.display = (allRooms.length && rooms.length === 0) ? 'block' : 'none';
+
+  document.getElementById('rows').innerHTML = rooms.map(r => {
     const id = encodeURIComponent(r.id);
     const dot = r.status === 'active' ? '<span class="live-dot"></span>' : '';
+    const latCls = latencyClass(r.avg_latency_ms);
+    const latPct = r.avg_latency_ms !== null ? Math.min(100, Math.round((r.avg_latency_ms / 6000) * 100)) : 0;
     return `
-    <tr>
+    <tr class="${isProblem(r) ? 'problem' : ''}">
       <td>${esc(r.title || r.id)}</td>
       <td>
         <span class="status ${esc(r.status)}">${dot}${esc(statusLabel[r.status] || r.status)}</span>
@@ -72,11 +203,16 @@ async function refresh() {
       </td>
       <td>${esc(r.source_lang)} → ${esc(r.target_langs.join(', '))}</td>
       <td>${r.idle_s !== null ? r.idle_s + 's' : '—'}</td>
-      <td>${r.avg_latency_ms !== null ? r.avg_latency_ms + 'ms' : '<span class="muted">—</span>'}</td>
+      <td>
+        ${r.avg_latency_ms !== null
+          ? `<div class="latency-cell"><div class="latency-bar"><div class="${latCls}" style="width:${latPct}%"></div></div>${r.avg_latency_ms}ms</div>`
+          : '<span class="muted">—</span>'}
+      </td>
       <td>${r.utterance_count}</td>
       <td class="${r.error_count > 0 ? 'errcount' : 'muted'}">${r.error_count}</td>
       <td class="actions">
         <a href="watch.html?room=${id}" target="_blank">ver</a>
+        <a href="qr.html?room=${id}" target="_blank">QR</a>
         <a href="/api/rooms/${id}/export?format=srt">.srt</a>
         <a href="/api/rooms/${id}/export?format=vtt">.vtt</a>
       </td>
@@ -84,8 +220,26 @@ async function refresh() {
   `;
   }).join('');
 }
+
+async function refresh() {
+  allRooms = await (await fetch('/api/rooms')).json();
+  document.getElementById('empty').style.display = allRooms.length ? 'none' : 'block';
+  document.getElementById('updated').textContent = 'actualizado hace un instante';
+  renderStats(allRooms);
+  renderPills(allRooms);
+  renderRows();
+}
+
+document.getElementById('search').addEventListener('input', renderRows);
+document.getElementById('problems-first').addEventListener('change', renderRows);
+
 refresh();
-setInterval(refresh, 3000);
+let secondsSinceUpdate = 0;
+setInterval(() => {
+  secondsSinceUpdate += 1;
+  document.getElementById('updated').textContent = `actualizado hace ${secondsSinceUpdate}s`;
+}, 1000);
+setInterval(() => { refresh(); secondsSinceUpdate = 0; }, 3000);
 </script>
 </body>
 </html>
