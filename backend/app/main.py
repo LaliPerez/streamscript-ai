@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from app.export import FORMATTERS
 from app.rooms import manager
-from app.worker import run_room
+from app.worker import caption_message, run_room
 from app.ws_hub import hub
 
 logging.basicConfig(level=logging.INFO)
@@ -141,6 +141,11 @@ async def ws_subtitles(websocket: WebSocket, room_id: str):
     # room already went active (the common case) would otherwise never learn
     # the current status and stay stuck on "conectando..." forever.
     await websocket.send_json({"type": "status", "status": room.status, "detail": room.last_error})
+    # Same problem for captions: without this, a viewer joining a talk
+    # already in progress stares at "esperando subtitulos" until the next
+    # sentence finishes, even though the room has been live for minutes.
+    if room.store.entries:
+        await websocket.send_json(caption_message(room.store.entries[-1]))
     try:
         while True:
             await websocket.receive_text()  # keepalive/pings from client; no client->server data expected

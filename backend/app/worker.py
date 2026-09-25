@@ -23,6 +23,27 @@ def _estimate_display_ms(text: str) -> int:
     return max(1200, len(text) * 60)
 
 
+def caption_message(event) -> dict:
+    """Shape a TranscriptEvent as a `/ws/subtitles` broadcast message.
+
+    Shared so a viewer who connects mid-talk can be replayed the last known
+    caption (see main.py's ws_subtitles) in the exact same shape as a live
+    broadcast, instead of staring at "esperando subtitulos" until the next
+    sentence finishes -- which can be 10-15s into an already-live room.
+    """
+    return {
+        "type": "caption",
+        "utterance_id": event.utterance_id,
+        "source_text": event.source_text,
+        "source_lang": event.source_lang,
+        "translations": event.translations,
+        "is_final": event.is_final,
+        "degraded": event.degraded,
+        "start_ms": event.start_ms,
+        "end_ms": event.end_ms,
+    }
+
+
 def _build_provider(room: Room) -> TranscriptionProvider:
     glossary_block = load_glossary_block(room.glossary_path)
     if os.getenv("GEMINI_API_KEY"):
@@ -52,16 +73,30 @@ async def run_room(room: Room) -> None:
         return
 
     async def pump_audio() -> None:
+        _MAX_CONSECUTIVE_FAILURES = 5
+        consecutive_failures = 0
         while True:
             chunk = await room.audio_queue.get()
             if chunk is None:
                 return
             try:
                 await provider.send_audio_chunk(chunk)
+                consecutive_failures = 0
             except Exception as exc:  # noqa: BLE001
                 logger.exception("error sending audio for room %s", room.id)
                 room.error_count += 1
                 room.last_error = str(exc)
+                consecutive_failures += 1
+                if consecutive_failures >= _MAX_CONSECUTIVE_FAILURES:
+                    # The underlying session is dead (e.g. aborted by the API
+                    # under concurrent-session limits): every further chunk
+                    # would just fail the same way. Stop pretending the room
+                    # is healthy instead of silently eating errors forever
+                    # while the dashboard still shows it as "en vivo".
+                    logger.error("room %s: %d consecutive send failures, marking as error", room.id, consecutive_failures)
+                    room.status = "error"
+                    await hub.broadcast(room.id, {"type": "status", "status": "error", "detail": room.last_error})
+                    return
 
     async def pump_events() -> None:
         origin_ms = int(room.started_at * 1000)
@@ -82,20 +117,7 @@ async def run_room(room: Room) -> None:
             if event.degraded:
                 room.error_count += 1
                 room.last_error = "translation degraded to source text (API error or rate limit)"
-            await hub.broadcast(
-                room.id,
-                {
-                    "type": "caption",
-                    "utterance_id": event.utterance_id,
-                    "source_text": event.source_text,
-                    "source_lang": event.source_lang,
-                    "translations": event.translations,
-                    "is_final": event.is_final,
-                    "degraded": event.degraded,
-                    "start_ms": event.start_ms,
-                    "end_ms": event.end_ms,
-                },
-            )
+            await hub.broadcast(room.id, caption_message(event))
 
     try:
         await asyncio.gather(pump_audio(), pump_events())
