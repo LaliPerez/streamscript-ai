@@ -120,22 +120,18 @@ def test_ingest_ws_on_unknown_room_closes_immediately(client):
 
 
 def test_ingest_ws_enqueues_bytes_onto_the_rooms_audio_queue(client):
-    # Whether the worker task gets scheduled promptly enough within a test's
-    # short lifetime is a TestClient/anyio scheduling quirk (confirmed with a
-    # standalone repro), not something worth asserting on here -- what this
-    # endpoint is actually responsible for is handing bytes off correctly,
-    # which end-to-end transcription (test_mock_provider.py) and hours of
-    # manual testing against the real Gemini API already cover. No polling
-    # wait needed either: websocket_connect's send is synchronous with the
-    # server processing each message (put_nowait happens inline in
-    # ws_ingest), so by the time the `with` block exits every send has
-    # already landed in the queue.
-    room = _create_room(client)
-    with client.websocket_connect(f"/ws/ingest/{room['id']}") as ws:
+    # Registers the room directly instead of via POST /api/rooms, so no
+    # worker task is spawned to consume the queue -- otherwise this races a
+    # real consumer (observed on a faster/slower runner: the worker can
+    # legitimately drain the queue before this assertion runs, since that's
+    # exactly what it's supposed to do). What's actually under test here is
+    # ws_ingest's own job -- accept bytes, put_nowait them -- in isolation.
+    room = manager.create("Keynote", "en", ["es"], None)
+    with client.websocket_connect(f"/ws/ingest/{room.id}") as ws:
         for _ in range(3):
             ws.send_bytes(_loud_pcm16_chunk())
 
-    assert manager.get(room["id"]).audio_queue.qsize() >= 3
+    assert room.audio_queue.qsize() == 3
 
 
 def test_late_subscriber_is_replayed_current_status_and_last_caption(client):
