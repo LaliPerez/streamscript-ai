@@ -4,10 +4,17 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>StreamScript AI — Panel de producción</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%2300ACA8'/%3E%3Crect x='6' y='10' width='2.4' height='8' rx='1.2' fill='%231A1A1A'/%3E%3Crect x='10.8' y='6' width='2.4' height='12' rx='1.2' fill='%231A1A1A'/%3E%3Crect x='15.6' y='9' width='2.4' height='9' rx='1.2' fill='%231A1A1A'/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%2300ACA8'/%3E%3Crect x='4' y='8' width='2' height='5' rx='1' fill='%231A1A1A'/%3E%3Crect x='8' y='4' width='2' height='9' rx='1' fill='%231A1A1A'/%3E%3Crect x='12' y='6' width='2' height='7' rx='1' fill='%231A1A1A'/%3E%3Crect x='16' y='9' width='2' height='4' rx='1' fill='%231A1A1A'/%3E%3Crect x='4' y='16.5' width='16' height='2' rx='1' fill='%231A1A1A'/%3E%3Crect x='4' y='20' width='10' height='2' rx='1' fill='%231A1A1A'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="theme.css" />
 <style>
   body { padding: 1.75rem; max-width: 1180px; margin: 0 auto 4rem; }
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    label.switch { margin-left: 0; }
+  }
+
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius); }
+  .table-scroll table { min-width: 760px; }
 
   header { display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
   header .right { display:flex; align-items:center; gap: 1rem; font-size: 0.82rem; color: var(--text-faint); }
@@ -87,7 +94,7 @@
 <body>
 <header>
   <span class="brand">
-    <svg width="22" height="22" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#00ACA8"/><rect x="6" y="10" width="2.4" height="8" rx="1.2" fill="#1A1A1A"/><rect x="10.8" y="6" width="2.4" height="12" rx="1.2" fill="#1A1A1A"/><rect x="15.6" y="9" width="2.4" height="9" rx="1.2" fill="#1A1A1A"/></svg>
+    <svg width="22" height="22" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#00ACA8"/><rect x="4" y="8" width="2" height="5" rx="1" fill="#1A1A1A"/><rect x="8" y="4" width="2" height="9" rx="1" fill="#1A1A1A"/><rect x="12" y="6" width="2" height="7" rx="1" fill="#1A1A1A"/><rect x="16" y="9" width="2" height="4" rx="1" fill="#1A1A1A"/><rect x="4" y="16.5" width="16" height="2" rx="1" fill="#1A1A1A"/><rect x="4" y="20" width="10" height="2" rx="1" fill="#1A1A1A"/></svg>
     StreamScript AI <span class="tag">panel de producción</span>
   </span>
   <div class="right">
@@ -110,6 +117,7 @@
   </label>
 </div>
 
+<div class="table-scroll">
 <table>
   <thead>
     <tr>
@@ -119,6 +127,7 @@
   </thead>
   <tbody id="rows"></tbody>
 </table>
+</div>
 <p id="empty" style="display:none;">No hay salas todavía.</p>
 <p id="no-match" style="display:none;">Ninguna sala coincide con el filtro actual.</p>
 
