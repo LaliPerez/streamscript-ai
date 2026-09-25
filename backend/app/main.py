@@ -4,13 +4,14 @@ import asyncio
 import io
 import logging
 import os
+import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -43,6 +44,27 @@ app.add_middleware(
 )
 
 
+async def require_admin(x_admin_token: str | None = Header(default=None)) -> None:
+    """Gate room creation/closing behind a shared secret.
+
+    Read fresh on every call (not cached at import time) so tests can set/
+    unset ADMIN_TOKEN per-case and so an ops team can rotate it with a
+    plain process restart. Unset/empty ADMIN_TOKEN disables the check
+    entirely -- convenient for local dev, but see the README: leaving it
+    unset on a publicly reachable deployment (now that CORS is wide open
+    by default) means anyone who finds the URL can create rooms and burn
+    through the Gemini quota on that API key.
+
+    Viewing endpoints (GET, export, the /ws/subtitles feed) stay open on
+    purpose -- the audience scanning a QR code shouldn't need a token.
+    """
+    expected = os.getenv("ADMIN_TOKEN")
+    if not expected:
+        return
+    if not x_admin_token or not secrets.compare_digest(x_admin_token, expected):
+        raise HTTPException(401, "missing or invalid X-Admin-Token header")
+
+
 class CreateRoomRequest(BaseModel):
     title: str
     source_lang: str = "en"
@@ -50,7 +72,7 @@ class CreateRoomRequest(BaseModel):
     glossary_path: str | None = None
 
 
-@app.post("/api/rooms")
+@app.post("/api/rooms", dependencies=[Depends(require_admin)])
 async def create_room(req: CreateRoomRequest):
     room = manager.create(req.title, req.source_lang, req.target_langs, req.glossary_path)
     room.worker_task = asyncio.create_task(run_room(room))
@@ -70,7 +92,7 @@ async def get_room(room_id: str):
     return room.to_public_dict()
 
 
-@app.delete("/api/rooms/{room_id}")
+@app.delete("/api/rooms/{room_id}", dependencies=[Depends(require_admin)])
 async def close_room(room_id: str):
     room = await manager.close(room_id)
     if room is None:

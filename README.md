@@ -260,6 +260,24 @@ cp .env.example .env
 > subtítulos de ejemplo — útil para probar todo el resto del sistema (salas, export, dashboard,
 > frontend) sin la key.
 
+### 1b. Asegurar quién puede crear salas (importante si vas a exponer esto públicamente)
+
+`POST /api/rooms` y `DELETE /api/rooms/{id}` no tienen ninguna autenticación por defecto. Sumado a que
+`CORS_ALLOWED_ORIGINS` es `*` por defecto, eso significa que **cualquiera que encuentre la URL puede
+crear salas y gastar la cuota de Gemini de tu cuenta**, sin que quien mira los subtítulos necesite
+nada. Antes de desplegar esto donde cualquiera pueda llegar a la URL, seteá `ADMIN_TOKEN` en `.env`:
+
+```bash
+# genera un token random
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+# o: openssl rand -base64 32
+```
+
+Con `ADMIN_TOKEN` seteado, crear y cerrar salas requiere el header `X-Admin-Token: <token>` (401 sin
+él o con uno incorrecto) — ver el ejemplo de `curl` más abajo. **Todo lo demás queda público a
+propósito**: listar/ver salas, exportar, el QR y el feed de subtítulos (`/ws/subtitles`), porque la
+audiencia que escanea un QR no tiene por qué tener ningún token.
+
 ### 2. Levantar con Docker (recomendado)
 
 ```bash
@@ -295,6 +313,7 @@ durante el desarrollo (ver `test_api.py`).
 ```bash
 curl -X POST http://localhost:8000/api/rooms \
   -H "Content-Type: application/json" \
+  -H "X-Admin-Token: $ADMIN_TOKEN" \
   -d '{"title": "Keynote", "source_lang": "en", "target_langs": ["es"], "glossary_path": "config/glossary.example.yaml"}'
 # devuelve {"id": "<room_id>", ...}
 
