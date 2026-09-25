@@ -8,6 +8,12 @@ Subtítulos y traducción en tiempo real para conferencias, open source y a esca
 [![Deploy](https://img.shields.io/badge/deploy-docker%20compose%20up-00ACA8)](docker-compose.yml)
 [![Vibeathon](https://img.shields.io/badge/Nerdearla-Vibeathon%202026-FF323C)](https://nerdearla.com)
 
+**Demo en vivo:** [starter-drums-arrange-tariff.trycloudflare.com](https://starter-drums-arrange-tariff.trycloudflare.com)
+— corre sobre un [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/)
+gratuito hacia una instancia local, sin garantía de uptime ni de que siga disponible después de la
+entrega. Si el link no responde, el código funciona igual clonando el repo y corriendo
+`docker compose up` (ver [Setup](#setup)).
+
 Construido para la **Vibeathon de Nerdearla 2026**: reemplazar el esquema actual de subtitulado
 comercial/manual (caro, dependiente de operadores, no replicable) por un motor open source que
 cualquier conferencia pueda desplegar con `docker compose up`.
