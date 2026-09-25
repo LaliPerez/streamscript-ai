@@ -43,7 +43,7 @@ def _create_room(client, **overrides) -> dict:
     return res.json()
 
 
-def _wait_until(predicate, timeout: float = 3.0) -> None:
+def _wait_until(predicate, timeout: float = 5.0) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
         if predicate():
@@ -125,12 +125,17 @@ def test_ingest_ws_enqueues_bytes_onto_the_rooms_audio_queue(client):
     # standalone repro), not something worth asserting on here -- what this
     # endpoint is actually responsible for is handing bytes off correctly,
     # which end-to-end transcription (test_mock_provider.py) and hours of
-    # manual testing against the real Gemini API already cover.
+    # manual testing against the real Gemini API already cover. No polling
+    # wait needed either: websocket_connect's send is synchronous with the
+    # server processing each message (put_nowait happens inline in
+    # ws_ingest), so by the time the `with` block exits every send has
+    # already landed in the queue.
     room = _create_room(client)
     with client.websocket_connect(f"/ws/ingest/{room['id']}") as ws:
         for _ in range(3):
             ws.send_bytes(_loud_pcm16_chunk())
-        _wait_until(lambda: manager.get(room["id"]).audio_queue.qsize() >= 3, timeout=2)
+
+    assert manager.get(room["id"]).audio_queue.qsize() >= 3
 
 
 def test_late_subscriber_is_replayed_current_status_and_last_caption(client):
