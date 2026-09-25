@@ -22,6 +22,11 @@ portugués de punta a punta. El detalle de cada prueba está en
 [Fortalezas de la arquitectura](#fortalezas-de-la-arquitectura) y en el checklist de abajo.
 
 <p align="center">
+  <img src="docs/screenshots/demo.gif" alt="Subtítulos apareciendo en vivo, traducidos por Gemini en tiempo real" width="320">
+</p>
+<p align="center"><sub>Grabado con Playwright contra el server real, con audio real y traducción real de Gemini — no una animación armada a mano.</sub></p>
+
+<p align="center">
   <img src="docs/screenshots/dashboard.png" alt="Panel de producción con salas en vivo, latencia y errores" width="850">
 </p>
 <p align="center">
