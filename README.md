@@ -20,6 +20,16 @@ dos etapas), que el free tier tiene cuotas de apenas 20 requests/día en algunos
 portugués de punta a punta. El detalle de cada prueba está en
 [Fortalezas de la arquitectura](#fortalezas-de-la-arquitectura) y en el checklist de abajo.
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Panel de producción con salas en vivo, latencia y errores" width="850">
+</p>
+<p align="center">
+  <img src="docs/screenshots/watch.png" alt="Vista de audiencia con subtítulos en vivo" width="270">
+  <img src="docs/screenshots/qr.png" alt="Página de QR para proyectar en el venue" width="270">
+  <img src="docs/screenshots/index.png" alt="Listado de salas activas" width="270">
+</p>
+<p align="center"><sub>Capturas reales del sistema corriendo contra la API de Gemini, no mockups.</sub></p>
+
 ## Checklist del desafío, con evidencia
 
 Requisitos obligatorios de la Vibeathon, cada uno con lo que lo respalda:
