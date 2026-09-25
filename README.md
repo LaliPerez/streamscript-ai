@@ -62,10 +62,14 @@ Requisitos obligatorios de la Vibeathon, cada uno con lo que lo respalda:
          términos marcados como "no traducir" (ej. *hydration*). Si esa llamada falla (rate limit, 503),
          degrada a mostrar el texto sin traducir en vez de perder el subtítulo, y **eso queda registrado**
          como error visible en `/dashboard.html`, no oculto.
-- [ ] **Proveedor local con Gemma para el caso 100% offline.** Gemma en sí **no transcribe audio** (es
-      una familia de modelos de texto); el camino equivalente al de arriba sería un ASR local (ej.
-      Whisper) + **TranslateGemma** (variante de Gemma para traducción, 55 idiomas) — mismo contrato
-      `TranscriptionProvider`, mismo patrón de dos etapas ya validado con Gemini.
+- [ ] **Proveedor local con Gemma para el caso 100% offline.** `GemmaLocalProvider` está implementado
+      y probado con 6 tests unitarios (buffering/segmentación por silencio, degradación en fallos) — pero
+      **la integración en vivo contra Whisper y Ollama reales no se pudo correr de punta a punta**: la
+      máquina de desarrollo se quedó sin espacio en disco (bajó a 5.4GB libres por actividad ajena a este
+      proyecto) a mitad de descargar la imagen de Ollama. El código sigue el mismo contrato
+      `TranscriptionProvider` y el mismo patrón de dos etapas que `GeminiLiveProvider` (Gemma no transcribe
+      audio, así que usa **faster-whisper** para ASR + un modelo Gemma servido por **Ollama** para
+      traducir) — pendiente de validar con más margen de disco.
 
 Opcionales cubiertos — los 5 del reto: glosario técnico, export SRT/VTT/TXT, overlay OBS/vMix, portugués
 como idioma extra (entrada y salida, validado con audio real), y panel de monitoreo con latencia y
@@ -141,14 +145,15 @@ reduce el radio de impacto de lo que todavía no sabíamos sobre la API de Gemin
   sola autenticación, un solo lugar donde vive la lógica de reintentos — en vez de coordinar dos
   proveedores con comportamientos y límites de cuota distintos.
 
-- **¿Por qué Gemma (vía TranslateGemma) para el camino 100% local, y no Llama o Mistral?** También lo
-  sugiere el reto, pero la razón técnica es que **Gemma tiene una variante dedicada a traducción**
-  (TranslateGemma, 55 idiomas) que encaja exacto en la segunda etapa que ya existe (traducción por
-  oración, llamada de texto separada) sin rediseñar nada — solo hay que escribir un
-  `GemmaLocalProvider` que implemente el mismo contrato. Ser la misma familia de modelos que Gemini
-  (ambos de Google) también significa reusar la misma forma de pensar los prompts en vez de aprender el
-  comportamiento de un ecosistema distinto. La transcripción en ese camino local no la hace Gemma (no
-  transcribe audio) sino un ASR local aparte (ej. Whisper) — ver el ítem del roadmap.
+- **¿Por qué Gemma para el camino 100% local, y no Llama o Mistral?** También lo sugiere el reto, pero
+  la razón técnica es que Google publica una variante de Gemma dedicada a traducción (**TranslateGemma**,
+  55 idiomas) que encaja exacto en la segunda etapa que ya existe (traducción por oración, llamada de
+  texto separada) sin rediseñar nada. `GemmaLocalProvider` implementa el mismo contrato
+  `TranscriptionProvider` que el de Gemini: ASR local con **faster-whisper** (Gemma no procesa audio,
+  igual que Gemini necesitó un modelo de ASR dedicado aparte) + traducción con un modelo Gemma servido
+  por **Ollama**. El default es `gemma3:1b` en vez de TranslateGemma por una razón muy concreta y nada
+  arquitectónica: TranslateGemma pesa ~7.8GB y la máquina de desarrollo tenía 11GB libres — es un
+  cambio de una variable de entorno (`GEMMA_TRANSLATE_MODEL`) para quien tenga más margen de disco.
 
 - **¿Por qué la arquitectura en dos etapas (ASR + traducción separada), en vez de un solo modelo Live
   conversacional?** No fue la primera opción: se intentó primero pedirle a un modelo Live "de chat" que
@@ -344,6 +349,34 @@ parámetro `lang` es opcional; si se omite, se muestra el idioma original. En vM
 fuente de tipo *Web Browser*. La misma sala puede tener a la vez: audiencia mirando `/watch.html` desde
 el celu vía QR, el overlay quemándose en el stream, y el equipo de producción viendo `/dashboard.html`
 — los tres consumen el mismo WebSocket de subtítulos (`/ws/subtitles/{room_id}`), sin pasos extra.
+
+### 6. Camino 100% local (sin Gemini, sin API key, sin internet)
+
+> **Estado:** implementado y con 6 tests unitarios (buffering/segmentación, degradación en fallos), pero
+> **no se pudo validar en vivo contra Whisper/Ollama reales** — la máquina de desarrollo se quedó sin
+> espacio en disco a mitad de bajar la imagen de Ollama. Necesita ~3-4GB libres holgados (imagen de
+> Ollama + `gemma3:1b` + modelo de Whisper) para probarlo de punta a punta.
+
+`GemmaLocalProvider` reemplaza a Gemini por completo: **faster-whisper** corre la transcripción (CPU,
+sin GPU) y un modelo **Gemma** servido por **Ollama** hace la traducción — mismo contrato
+`TranscriptionProvider`, nada más del sistema cambia. Es un perfil aparte de Docker Compose para no
+forzarle una imagen de varios GB a quien solo quiere el camino con Gemini:
+
+```bash
+docker compose --profile local-ai up --build     # además de streamscript, levanta ollama
+docker compose exec ollama ollama pull gemma3:1b # una sola vez (~815MB)
+```
+
+En `.env`:
+
+```bash
+TRANSCRIPTION_PROVIDER=gemma_local
+```
+
+Reiniciar el server y crear una sala como siempre — corre sin `GEMINI_API_KEY`, sin salir a internet
+salvo la descarga inicial de los modelos. `WHISPER_MODEL_SIZE` (default `base`) y
+`GEMMA_TRANSLATE_MODEL` (default `gemma3:1b`, cambiar a `translategemma:4b` con más margen de disco —
+ver [Decisiones de arquitectura](#decisiones-de-arquitectura-y-por-qué)) son configurables.
 
 **Nota sobre nombres de modelo:** la familia Gemini se mueve rápido y cada modelo del free tier tiene su
 propia cuota diaria chica — si uno se agota, alcanza con cambiar `GEMINI_TRANSLATE_MODEL` en `.env` a
