@@ -2,6 +2,7 @@
 
 Subtítulos y traducción en tiempo real para conferencias, open source y a escala de producción.
 
+[![CI](https://github.com/LaliPerez/streamscript-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/LaliPerez/streamscript-ai/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-00ACA8)](LICENSE)
 [![Built with Gemini](https://img.shields.io/badge/built%20with-Gemini-FFBA00)](https://ai.google.dev)
 [![Deploy](https://img.shields.io/badge/deploy-docker%20compose%20up-00ACA8)](docker-compose.yml)
@@ -275,6 +276,19 @@ python -m venv .venv && .venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 uvicorn app.main:app --reload --app-dir .
 ```
+
+### 3b. Correr los tests
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest tests -v
+```
+
+Corren contra `MockProvider` (sin necesidad de `GEMINI_API_KEY` ni gastar cuota) y se ejecutan en
+[CI](https://github.com/LaliPerez/streamscript-ai/actions) en cada push. Incluyen tests de regresión
+para los dos bugs de "el viewer que se conecta tarde no ve nada" que se encontraron y arreglaron
+durante el desarrollo (ver `test_api.py`).
 
 ### 4. Crear una sala y mandarle audio
 
