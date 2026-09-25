@@ -382,6 +382,19 @@ ver [Decisiones de arquitectura](#decisiones-de-arquitectura-y-por-qué)) son co
 propia cuota diaria chica — si uno se agota, alcanza con cambiar `GEMINI_TRANSLATE_MODEL` en `.env` a
 otro (ej. `gemini-3.1-flash-lite`), sin tocar código. En un tier pago esto deja de ser un problema.
 
+## Roadmap
+
+- **Evaluar `gemini-3.5-live-translate`** (traducción voz-a-voz) como alternativa para la etapa de
+  traducción. No es un reemplazo directo: el producto necesita subtítulos de **texto**, no audio
+  traducido, así que de todos modos habría que extraerle la transcripción — pero si el modelo expone
+  también salida de texto, podría simplificar esa segunda etapa. Sin validar todavía contra la API real.
+- **`RoomManager` respaldado en Redis** + workers horizontales con pub/sub para el fan-out, para escalar
+  más allá de lo que aguanta un solo proceso cuando son 30+ salas reales (ver
+  ["Cuota de la cuenta, no límite de la arquitectura"](#cuota-de-la-cuenta-no-límite-de-la-arquitectura-leer-antes-de-un-evento-real)).
+- **`TranslateGemma` como default del camino 100% local**, en vez de `gemma3:1b`, para quien tenga más
+  margen de disco (`GEMMA_TRANSLATE_MODEL=translategemma:4b`) — y validación en vivo del camino local
+  contra faster-whisper + Ollama reales, pendiente por la falta de disco durante esta entrega.
+
 ## Licencia
 
 MIT — ver [LICENSE](LICENSE).
