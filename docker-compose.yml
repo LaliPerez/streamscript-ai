@@ -10,6 +10,23 @@ services:
     volumes:
       - ./config:/srv/config:ro
       - streamscript-data:/srv/backend/data
+      - whisper-cache:/root/.cache/huggingface
+
+  # 100% local path (TRANSCRIPTION_PROVIDER=gemma_local): serves the Gemma
+  # model used for translation. Opt-in via the "local-ai" profile so
+  # `docker compose up` alone doesn't force everyone to pull a multi-GB
+  # image just to run the default Gemini-backed setup.
+  #   docker compose --profile local-ai up --build
+  #   docker compose exec ollama ollama pull gemma3:1b   # first run only
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local-ai"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
 
 volumes:
   streamscript-data:
+  ollama-data:
+  whisper-cache:

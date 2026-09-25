@@ -46,10 +46,21 @@ def caption_message(event) -> dict:
 
 def _build_provider(room: Room) -> TranscriptionProvider:
     glossary_block = load_glossary_block(room.glossary_path)
+    choice = os.getenv("TRANSCRIPTION_PROVIDER", "").strip().lower()
+
+    if choice == "gemma_local":
+        from app.providers.gemma_local import GemmaLocalProvider
+
+        return GemmaLocalProvider(room.source_lang, room.target_langs, glossary_block)
+    if choice == "mock":
+        from app.providers.mock import MockProvider
+
+        return MockProvider(room.source_lang, room.target_langs)
     if os.getenv("GEMINI_API_KEY"):
         from app.providers.gemini_live import GeminiLiveProvider
 
         return GeminiLiveProvider(room.source_lang, room.target_langs, glossary_block)
+
     from app.providers.mock import MockProvider
 
     logger.warning("GEMINI_API_KEY not set, room %s running on MockProvider", room.id)
